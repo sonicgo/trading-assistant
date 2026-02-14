@@ -1,0 +1,107 @@
+graph TD
+
+%% ===== Styles =====
+classDef stream fill:#F5F5F5,stroke:#333,stroke-width:1px;
+classDef snap fill:#E8F4FF,stroke:#1f77b4,stroke-width:1px;
+classDef domain fill:#FFFFFF,stroke:#999,stroke-dasharray: 5 5;
+
+%% ===== Domain A: Registry & Context =====
+subgraph A["Domain A — Registry & Context"]
+  U[User]:::stream
+  P["Portfolio<br/>(tax_treatment)"]:::stream
+  PM["PortfolioMembership<br/>(optional)"]:::stream
+  I["Instrument<br/>(ISIN-canonical)"]:::stream
+  IL["InstrumentListing<br/>(ticker + venue + ccy + scale)"]:::stream
+end
+class A domain
+
+%% Relationships Domain A
+U -->|"owns"| P
+U -->|"access (optional)"| PM
+PM --> P
+I -->|"1..N"| IL
+
+%% ===== Domain B: Market Data =====
+subgraph B["Domain B — Market Data"]
+  PP["PricePoint<br/>(per listing)"]:::stream
+  FX["FXRate<br/>(pair + source)"]:::stream
+  CA["CorporateAction<br/>(per instrument)"]:::stream
+end
+class B domain
+
+%% Relationships Domain B
+IL -->|"1..N"| PP
+I -->|"1..N"| CA
+
+%% ===== Domain C: Book of Record =====
+subgraph C["Domain C — Book of Record"]
+  LB[LedgerBatch]:::stream
+  LE["LedgerEntry<br/>(BUY/SELL/CONTRIB/FEE...)"]:::stream
+  HS["HoldingSnapshot<br/>(current)"]:::snap
+  CS["CashSnapshot<br/>(current GBP — V1)"]:::snap
+end
+class C domain
+
+%% Relationships Domain C
+P -->|"1..N"| LB
+LB -->|"1..N"| LE
+LE -.->|"derives"| HS
+LE -.->|"derives"| CS
+CA -.->|"adjusts derivation"| HS
+
+P -->|"has current"| HS
+P -->|"has current"| CS
+IL -->|"held/traded as"| HS
+IL -->|"traded as"| LE
+
+%% ===== Domain D: Strategy & Intelligence =====
+subgraph D["Domain D — Strategy & Intelligence"]
+  SV["StrategyVersion<br/>(policy+manifesto)"]:::stream
+  ST["SleeveTarget<br/>(targets by sleeve)"]:::stream
+  R[Recommendation]:::stream
+  RL[RecommendationLine]:::stream
+  LV[LLMVerdict]:::stream
+end
+class D domain
+
+%% Relationships Domain D
+SV -->|"1..N"| ST
+
+%% ===== Domain E: Operations & Governance =====
+subgraph E["Domain E — Operations & Governance"]
+  PC["PortfolioConstituent<br/>(listing→sleeve + monitored)"]:::stream
+  TD["TaskDefinition<br/>(scope: GLOBAL/PORTFOLIO)"]:::stream
+  TR[TaskRun]:::stream
+  AL[Alert]:::stream
+  FR["FreezeState<br/>(current)"]:::snap
+  N[Notification]:::stream
+  AE[AuditEvent]:::stream
+end
+class E domain
+
+%% Relationships Domain E
+P -->|"1..N"| PC
+PC -->|"selects"| IL
+PC -->|"implements"| ST
+
+TD -->|"1..N"| TR
+TR -->|"uses"| SV
+TR -->|"0..1 produces"| R
+R -->|"1..N"| RL
+R -->|"0..N reviewed by"| LV
+
+P -->|"0..1 current"| FR
+TR -->|"may raise"| AL
+AL -->|"may block"| TD
+TR -->|"triggers"| N
+N -->|"sent to"| U
+
+AE -->|"references"| P
+AE -->|"references"| TR
+AE -->|"references"| R
+AE -->|"references"| SV
+AE -->|"references"| LE
+AE -->|"references"| PC
+
+%% ===== Safety linkage =====
+FR -->|"halts automation"| TD

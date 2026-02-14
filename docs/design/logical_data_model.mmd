@@ -1,0 +1,302 @@
+erDiagram
+
+    %% ==========================================
+    %% 1. CORE IDENTITY & TENANCY
+    %% ==========================================
+    USERS {
+        int user_id PK
+        string email "UQ"
+        string password_hash
+        boolean is_enabled
+        boolean is_bootstrap_admin
+    }
+
+    PORTFOLIOS {
+        int portfolio_id PK
+        int owner_user_id FK
+        string name
+        string broker
+        string base_currency "GBP"
+        string tax_treatment
+    }
+
+    PORTFOLIO_MEMBERSHIPS {
+        int portfolio_id PK, FK
+        int user_id PK, FK
+    }
+
+    %% Relationships
+    USERS ||--o{ PORTFOLIOS : "owns (1..N)"
+    USERS ||--o{ PORTFOLIO_MEMBERSHIPS : "member of (0..N)"
+    PORTFOLIOS ||--o{ PORTFOLIO_MEMBERSHIPS : "has members (0..N)"
+
+
+    %% ==========================================
+    %% 2. REGISTRY (INSTRUMENT + LISTING)
+    %% ==========================================
+    INSTRUMENTS {
+        int instrument_id PK
+        string isin "UQ, Canonical"
+        string instrument_type
+        string name
+    }
+
+    INSTRUMENT_LISTINGS {
+        int listing_id PK
+        int instrument_id FK
+        string ticker
+        string exchange
+        string trading_currency
+        string quote_scale "GBX/GBP"
+    }
+
+    %% Relationships
+    INSTRUMENTS ||--o{ INSTRUMENT_LISTINGS : "listed as (1..N)"
+
+
+    %% ==========================================
+    %% 3. STRATEGY & MAPPING
+    %% ==========================================
+    SLEEVES {
+        string sleeve_code PK
+        string name
+    }
+
+    STRATEGY_VERSIONS {
+        int strategy_version_id PK
+        string version_label
+        string status
+        string policy_sha256 FK
+        string manifesto_sha256 FK
+        int created_by_user_id FK
+    }
+
+    POLICY_ARCHIVES {
+        string policy_sha256 PK
+        jsonb policy_json "Immutable"
+    }
+
+    MANIFESTO_ARCHIVES {
+        string manifesto_sha256 PK
+        text manifesto_md "Immutable"
+    }
+
+    SLEEVE_TARGETS {
+        int strategy_version_id PK, FK
+        string sleeve_code PK, FK
+        decimal target_weight
+    }
+
+    PORTFOLIO_CONSTITUENTS {
+        int portfolio_id PK, FK
+        int listing_id PK, FK
+        string sleeve_code FK
+        boolean is_monitored
+    }
+
+    %% Relationships
+    STRATEGY_VERSIONS ||--|| POLICY_ARCHIVES : "defines (1..1)"
+    STRATEGY_VERSIONS ||--|| MANIFESTO_ARCHIVES : "explains (1..1)"
+    STRATEGY_VERSIONS ||--o{ SLEEVE_TARGETS : "targets (1..N)"
+    SLEEVES ||--o{ SLEEVE_TARGETS : "targeted by (0..N)"
+
+    PORTFOLIOS ||--o{ PORTFOLIO_CONSTITUENTS : "configures (0..N)"
+    INSTRUMENT_LISTINGS ||--o{ PORTFOLIO_CONSTITUENTS : "mapped to (0..N)"
+    SLEEVES ||--o{ PORTFOLIO_CONSTITUENTS : "categorizes (0..N)"
+
+
+    %% ==========================================
+    %% 4. MARKET DATA (IMMUTABLE FEED)
+    %% ==========================================
+    MARKET_DATA_SOURCES {
+        int source_id PK
+        string name
+    }
+
+    PRICE_POINTS {
+        bigint price_point_id PK
+        int listing_id FK
+        timestamp as_of
+        int source_id FK
+        boolean is_close
+        decimal normalized_price_base
+    }
+
+    FX_RATES {
+        bigint fx_rate_id PK
+        string base_currency
+        string quote_currency
+        timestamp as_of
+        decimal rate
+    }
+
+    CORPORATE_ACTIONS {
+        int corp_action_id PK
+        int instrument_id FK
+        string action_type
+        date effective_date
+    }
+
+    %% Relationships
+    MARKET_DATA_SOURCES ||--o{ PRICE_POINTS : "provides"
+    INSTRUMENT_LISTINGS ||--o{ PRICE_POINTS : "has prices"
+    MARKET_DATA_SOURCES ||--o{ FX_RATES : "provides"
+    INSTRUMENTS ||--o{ CORPORATE_ACTIONS : "undergoes"
+
+
+    %% ==========================================
+    %% 5. BOOK OF RECORD (LEDGER + SNAPSHOTS)
+    %% ==========================================
+    LEDGER_BATCHES {
+        int ledger_batch_id PK
+        int portfolio_id FK
+        string label
+        string batch_type
+    }
+
+    LEDGER_ENTRIES {
+        bigint ledger_entry_id PK
+        int ledger_batch_id FK
+        int portfolio_id FK
+        timestamp entry_time
+        string entry_type
+        int listing_id FK "Nullable (Cash)"
+        decimal units
+        decimal cash_amount_base
+    }
+
+    HOLDING_SNAPSHOTS {
+        int portfolio_id PK, FK
+        int listing_id PK, FK
+        decimal units
+        decimal avg_cost_base
+    }
+
+    CASH_SNAPSHOTS {
+        int portfolio_id PK, FK
+        string currency "GBP"
+        decimal cash_balance
+    }
+
+    PORTFOLIO_SUMMARIES {
+        int portfolio_id PK, FK
+        timestamp as_of
+        decimal total_value_base
+        jsonb drift_by_sleeve
+    }
+
+    %% Relationships
+    PORTFOLIOS ||--o{ LEDGER_BATCHES : "groups trades (0..N)"
+    LEDGER_BATCHES ||--o{ LEDGER_ENTRIES : "contains (1..N)"
+    INSTRUMENT_LISTINGS ||--o{ LEDGER_ENTRIES : "traded as (0..N)"
+    
+    PORTFOLIOS ||--o{ HOLDING_SNAPSHOTS : "current holdings (0..N)"
+    INSTRUMENT_LISTINGS ||--o{ HOLDING_SNAPSHOTS : "held as (0..N)"
+    
+    PORTFOLIOS ||--|| CASH_SNAPSHOTS : "current cash (1..1)"
+    PORTFOLIOS ||--o{ PORTFOLIO_SUMMARIES : "performance cache (0..N)"
+
+
+    %% ==========================================
+    %% 6. OPERATIONS & TASKS
+    %% ==========================================
+    TASK_DEFINITIONS {
+        int task_id PK
+        string scope "GLOBAL/PORTFOLIO"
+        int portfolio_id FK "Nullable"
+        string schedule_expr
+        string task_kind
+    }
+
+    TASK_RUNS {
+        bigint run_id PK
+        int task_id FK
+        int portfolio_id FK
+        int strategy_version_id FK
+        string status
+        string input_hash
+    }
+
+    RUN_INPUT_SNAPSHOTS {
+        bigint run_id PK, FK
+        jsonb snapshot_json "Reproducibility"
+    }
+
+    %% Relationships
+    TASK_DEFINITIONS ||--o{ TASK_RUNS : "executes (0..N)"
+    PORTFOLIOS ||--o{ TASK_RUNS : "context (0..N)"
+    STRATEGY_VERSIONS ||--o{ TASK_RUNS : "governs (0..N)"
+    TASK_RUNS ||--|| RUN_INPUT_SNAPSHOTS : "input blob (1..1)"
+
+
+    %% ==========================================
+    %% 7. RECOMMENDATIONS & AI
+    %% ==========================================
+    RECOMMENDATIONS {
+        int recommendation_id PK
+        bigint run_id FK
+        int portfolio_id FK
+        string status
+        jsonb rationale
+    }
+
+    RECOMMENDATION_LINES {
+        int line_id PK
+        int recommendation_id FK
+        int listing_id FK
+        string action "BUY/SELL"
+        decimal amount_base
+    }
+
+    LLM_VERDICTS {
+        int llm_verdict_id PK
+        int recommendation_id FK
+        string verdict "PASS/WARN/FAIL"
+        jsonb response_json
+    }
+
+    %% Relationships
+    TASK_RUNS ||--o| RECOMMENDATIONS : "produces (0..1)"
+    RECOMMENDATIONS ||--o{ RECOMMENDATION_LINES : "suggests (1..N)"
+    INSTRUMENT_LISTINGS ||--o{ RECOMMENDATION_LINES : "action on (0..N)"
+    RECOMMENDATIONS ||--o{ LLM_VERDICTS : "reviewed by (0..N)"
+
+
+    %% ==========================================
+    %% 8. GOVERNANCE
+    %% ==========================================
+    FREEZE_STATES {
+        int portfolio_id PK, FK
+        boolean is_frozen
+        string reason_code
+    }
+
+    ALERTS {
+        int alert_id PK
+        int portfolio_id FK
+        bigint run_id FK "Nullable"
+        string severity
+        string code
+    }
+
+    NOTIFICATIONS {
+        int notification_id PK
+        int user_id FK
+        string channel
+        string status
+    }
+
+    AUDIT_EVENTS {
+        bigint audit_event_id PK
+        int actor_user_id FK
+        string action
+        string entity_type "Polymorphic"
+        int entity_id "Polymorphic"
+    }
+
+    %% Relationships
+    PORTFOLIOS ||--|| FREEZE_STATES : "kill switch (1..1)"
+    PORTFOLIOS ||--o{ ALERTS : "has alerts (0..N)"
+    TASK_RUNS ||--o{ ALERTS : "raised by (0..N)"
+    USERS ||--o{ NOTIFICATIONS : "receives (0..N)"
+    USERS ||--o{ AUDIT_EVENTS : "performed (0..N)"

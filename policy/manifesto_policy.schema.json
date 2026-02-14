@@ -1,0 +1,508 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schema/manifesto_policy.schema.json",
+  "title": "Trading Assistant Manifesto Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "base_currency",
+    "price_normalization",
+    "instruments",
+    "targets",
+    "cash_park",
+    "cadence",
+    "triggers",
+    "constraints",
+    "data_quality"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Policy version (semantic versioning recommended)."
+    },
+    "base_currency": {
+      "type": "string",
+      "enum": [
+        "GBP"
+      ],
+      "description": "Base currency for all calculations in V1."
+    },
+    "price_normalization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_currency",
+        "quote_scale_factors"
+      ],
+      "properties": {
+        "target_currency": {
+          "type": "string",
+          "enum": [
+            "GBP"
+          ]
+        },
+        "quote_scale_factors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "GBX",
+            "GBP"
+          ],
+          "properties": {
+            "GBX": {
+              "type": "number",
+              "const": 0.01
+            },
+            "GBP": {
+              "type": "number",
+              "const": 1.0
+            }
+          },
+          "description": "Scale factors to convert provider quote-scale into GBP."
+        }
+      }
+    },
+    "instruments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ticker",
+          "isin",
+          "exchange",
+          "currency",
+          "quote_scale",
+          "sleeve"
+        ],
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "minLength": 1
+          },
+          "isin": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$",
+            "description": "ISIN primary key; use this as the canonical identifier internally."
+          },
+          "exchange": {
+            "type": "string",
+            "minLength": 1
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "GBP"
+            ]
+          },
+          "quote_scale": {
+            "type": "string",
+            "enum": [
+              "GBX",
+              "GBP"
+            ]
+          },
+          "sleeve": {
+            "type": "string",
+            "enum": [
+              "core",
+              "small_cap",
+              "energy",
+              "healthcare",
+              "short_gilts",
+              "semis",
+              "cash_park"
+            ]
+          },
+          "price_source_hint": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core",
+        "small_cap",
+        "energy",
+        "healthcare",
+        "short_gilts",
+        "semis"
+      ],
+      "properties": {
+        "core": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "small_cap": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "energy": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "healthcare": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "short_gilts": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "semis": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "description": "Target sleeve weights. Application must also enforce that these sum to 1.0 (\u00b1 a small tolerance)."
+    },
+    "cash_park": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instrument_ticker",
+        "staged_amount_gbp",
+        "waves",
+        "sunset"
+      ],
+      "properties": {
+        "instrument_ticker": {
+          "type": "string",
+          "minLength": 1
+        },
+        "staged_amount_gbp": {
+          "type": "number",
+          "minimum": 0
+        },
+        "waves": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "drawdown_trigger",
+              "deploy_amount_gbp",
+              "deploy_strategy"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "drawdown_trigger": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "deploy_amount_gbp": {
+                "type": "number",
+                "minimum": 0
+              },
+              "deploy_strategy": {
+                "type": "string",
+                "enum": [
+                  "most_underweight",
+                  "fixed_allocation"
+                ],
+                "description": "How to allocate funds when the wave triggers."
+              },
+              "eligible_sleeves": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "core",
+                    "small_cap",
+                    "energy",
+                    "healthcare",
+                    "short_gilts",
+                    "semis"
+                  ]
+                }
+              },
+              "deploy_to_sleeves": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "core",
+                    "small_cap",
+                    "energy",
+                    "healthcare",
+                    "short_gilts",
+                    "semis"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "sunset": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "date",
+              "deploy_fraction_of_remaining",
+              "deploy_strategy"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "deploy_fraction_of_remaining": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "deploy_strategy": {
+                "type": "string",
+                "enum": [
+                  "most_underweight",
+                  "fixed_allocation"
+                ]
+              },
+              "deploy_to_sleeves": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "core",
+                    "small_cap",
+                    "energy",
+                    "healthcare",
+                    "short_gilts",
+                    "semis"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cadence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "weekly",
+        "monthly",
+        "quarterly"
+      ],
+      "properties": {
+        "weekly": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "review_only"
+          ],
+          "properties": {
+            "review_only": {
+              "type": "boolean"
+            }
+          }
+        },
+        "monthly": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "contribution_gbp",
+            "max_orders",
+            "min_trade_gbp",
+            "default_orders",
+            "fallback_strategy"
+          ],
+          "properties": {
+            "contribution_gbp": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max_orders": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "min_trade_gbp": {
+              "type": "number",
+              "minimum": 0
+            },
+            "default_orders": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 10,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "ticker",
+                  "amount_gbp"
+                ],
+                "properties": {
+                  "ticker": {
+                    "type": "string"
+                  },
+                  "amount_gbp": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                }
+              },
+              "description": "Default monthly buy list. Application should also validate that amounts sum to contribution_gbp (\u00b1 tolerance) and count <= max_orders."
+            },
+            "fallback_strategy": {
+              "type": "string",
+              "enum": [
+                "most_underweight",
+                "fixed_allocation"
+              ]
+            }
+          }
+        },
+        "quarterly": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_orders",
+            "min_trade_gbp",
+            "priority_underweight_sleeves",
+            "fallback_to_monthly_defaults_when_no_meaningful_drift"
+          ],
+          "properties": {
+            "max_orders": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "min_trade_gbp": {
+              "type": "number",
+              "minimum": 0
+            },
+            "priority_underweight_sleeves": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "core",
+                  "small_cap",
+                  "energy",
+                  "healthcare",
+                  "short_gilts",
+                  "semis"
+                ]
+              }
+            },
+            "fallback_to_monthly_defaults_when_no_meaningful_drift": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "triggers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "major_sleeve_abs_drift_pp",
+        "minor_sleeve_abs_drift_pp",
+        "minor_sleeves",
+        "wave_triggers_enabled"
+      ],
+      "properties": {
+        "major_sleeve_abs_drift_pp": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Absolute drift threshold in percentage points for major sleeves (e.g., 2.0 means 2pp)."
+        },
+        "minor_sleeve_abs_drift_pp": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Absolute drift threshold in percentage points for minor sleeves."
+        },
+        "minor_sleeves": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "small_cap",
+              "short_gilts"
+            ]
+          }
+        },
+        "wave_triggers_enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allow_individual_stocks",
+        "max_drawdown_tolerance",
+        "use_accumulating_share_classes_only"
+      ],
+      "properties": {
+        "allow_individual_stocks": {
+          "type": "boolean"
+        },
+        "max_drawdown_tolerance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "use_accumulating_share_classes_only": {
+          "type": "boolean"
+        }
+      }
+    },
+    "data_quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freeze_on_value_jump_pct",
+        "enable_quote_scale_checks",
+        "enable_currency_mismatch_checks",
+        "block_recommendations_on_any_critical_alert"
+      ],
+      "properties": {
+        "freeze_on_value_jump_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "enable_quote_scale_checks": {
+          "type": "boolean"
+        },
+        "enable_currency_mismatch_checks": {
+          "type": "boolean"
+        },
+        "block_recommendations_on_any_critical_alert": {
+          "type": "boolean"
+        }
+      }
+    },
+    "notes": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

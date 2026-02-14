@@ -1,0 +1,196 @@
+{
+  "version": "1.0.0",
+  "base_currency": "GBP",
+  "price_normalization": {
+    "target_currency": "GBP",
+    "quote_scale_factors": {
+      "GBX": 0.01,
+      "GBP": 1.0
+    }
+  },
+  "instruments": [
+    {
+      "ticker": "VWRP",
+      "isin": "IE00BK5BQT80",
+      "exchange": "LSE",
+      "currency": "GBP",
+      "quote_scale": "GBX",
+      "sleeve": "core",
+      "price_source_hint": "LSE"
+    },
+    {
+      "ticker": "WLDS",
+      "isin": "IE00BF4RFH31",
+      "exchange": "LSE",
+      "currency": "GBP",
+      "quote_scale": "GBX",
+      "sleeve": "small_cap",
+      "price_source_hint": "LSE"
+    },
+    {
+      "ticker": "XWES",
+      "isin": "IE00BM67HM91",
+      "exchange": "LSE",
+      "currency": "GBP",
+      "quote_scale": "GBX",
+      "sleeve": "energy",
+      "price_source_hint": "LSE"
+    },
+    {
+      "ticker": "XWHS",
+      "isin": "IE00BM67HK77",
+      "exchange": "LSE",
+      "currency": "GBP",
+      "quote_scale": "GBX",
+      "sleeve": "healthcare",
+      "price_source_hint": "LSE"
+    },
+    {
+      "ticker": "IGL5",
+      "isin": "IE000RCMNFR9",
+      "exchange": "LSE",
+      "currency": "GBP",
+      "quote_scale": "GBX",
+      "sleeve": "short_gilts",
+      "price_source_hint": "LSE"
+    },
+    {
+      "ticker": "SEMI",
+      "isin": "IE000I8KRLL9",
+      "exchange": "LSE",
+      "currency": "GBP",
+      "quote_scale": "GBX",
+      "sleeve": "semis",
+      "price_source_hint": "LSE"
+    },
+    {
+      "ticker": "CSH2",
+      "isin": "LU1230136894",
+      "exchange": "LSE",
+      "currency": "GBP",
+      "quote_scale": "GBX",
+      "sleeve": "cash_park",
+      "price_source_hint": "LSE"
+    }
+  ],
+  "targets": {
+    "core": 0.35,
+    "small_cap": 0.05,
+    "energy": 0.1,
+    "healthcare": 0.1,
+    "short_gilts": 0.05,
+    "semis": 0.35
+  },
+  "cash_park": {
+    "instrument_ticker": "CSH2",
+    "staged_amount_gbp": 16000,
+    "waves": [
+      {
+        "name": "A",
+        "drawdown_trigger": 0.1,
+        "deploy_amount_gbp": 8000,
+        "deploy_strategy": "most_underweight",
+        "eligible_sleeves": [
+          "core",
+          "semis",
+          "energy",
+          "healthcare",
+          "small_cap",
+          "short_gilts"
+        ]
+      },
+      {
+        "name": "B",
+        "drawdown_trigger": 0.2,
+        "deploy_amount_gbp": 8000,
+        "deploy_strategy": "most_underweight",
+        "eligible_sleeves": [
+          "core",
+          "semis",
+          "energy",
+          "healthcare",
+          "small_cap",
+          "short_gilts"
+        ]
+      }
+    ],
+    "sunset": [
+      {
+        "date": "2027-02-01",
+        "deploy_fraction_of_remaining": 0.5,
+        "deploy_strategy": "fixed_allocation",
+        "deploy_to_sleeves": [
+          "core"
+        ]
+      },
+      {
+        "date": "2028-02-01",
+        "deploy_fraction_of_remaining": 1.0,
+        "deploy_strategy": "fixed_allocation",
+        "deploy_to_sleeves": [
+          "core"
+        ]
+      }
+    ]
+  },
+  "cadence": {
+    "weekly": {
+      "review_only": true
+    },
+    "monthly": {
+      "contribution_gbp": 500,
+      "max_orders": 2,
+      "min_trade_gbp": 25,
+      "default_orders": [
+        {
+          "ticker": "VWRP",
+          "amount_gbp": 425
+        },
+        {
+          "ticker": "WLDS",
+          "amount_gbp": 75
+        }
+      ],
+      "fallback_strategy": "most_underweight"
+    },
+    "quarterly": {
+      "max_orders": 3,
+      "min_trade_gbp": 25,
+      "priority_underweight_sleeves": [
+        "energy",
+        "healthcare",
+        "semis",
+        "short_gilts"
+      ],
+      "fallback_to_monthly_defaults_when_no_meaningful_drift": true
+    }
+  },
+  "triggers": {
+    "major_sleeve_abs_drift_pp": 2.0,
+    "minor_sleeve_abs_drift_pp": 1.0,
+    "minor_sleeves": [
+      "small_cap",
+      "short_gilts"
+    ],
+    "wave_triggers_enabled": true
+  },
+  "constraints": {
+    "allow_individual_stocks": false,
+    "max_drawdown_tolerance": 0.2,
+    "use_accumulating_share_classes_only": true
+  },
+  "data_quality": {
+    "freeze_on_value_jump_pct": 50,
+    "enable_quote_scale_checks": true,
+    "enable_currency_mismatch_checks": true,
+    "block_recommendations_on_any_critical_alert": true
+  },
+  "notes": {
+    "principles_summary": [
+      "Own broad, accumulating funds inside the SIPP; avoid dividend admin and reinvestment friction.",
+      "Keep trading frequency low (minimise dealing + FX + spread).",
+      "Use rules, not feelings: rebalance only when drift exceeds thresholds, and deploy cash via pre-set triggers.",
+      "Cash is not idle: staged cash must earn a cash-like return while waiting."
+    ]
+  }
+}

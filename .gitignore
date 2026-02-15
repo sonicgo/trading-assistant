@@ -1,0 +1,32 @@
+# --- Secrets & Environment ---
+.env
+.env.local
+.env.*.local
+
+# --- Python ---
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Node.js / Next.js ---
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Database & Volumes ---
+postgres_data/
+redis_data/
+*.sqlite3
+
+# --- IDE & OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

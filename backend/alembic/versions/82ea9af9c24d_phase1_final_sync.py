@@ -59,7 +59,9 @@ def upgrade():
         sa.Column('is_primary', sa.Boolean(), server_default='false'),
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.func.now()),
         sa.ForeignKeyConstraint(['instrument_id'], ['instrument.instrument_id']),
-        sa.PrimaryKeyConstraint('listing_id')
+        sa.PrimaryKeyConstraint('listing_id'),
+        # NEW: Integrity protection against duplicate listings
+        sa.UniqueConstraint('instrument_id', 'ticker', 'exchange', name='uq_listing_ticker_exchange')
     )
 
     # 3. Strategy / Portfolio Mapping
@@ -75,7 +77,10 @@ def upgrade():
         [
             {'sleeve_code': 'CORE', 'name': 'Core Passive'},
             {'sleeve_code': 'SATELLITE', 'name': 'Satellite Alpha'},
-            {'sleeve_code': 'CASH', 'name': 'Cash Buffer'}
+            {'sleeve_code': 'CASH', 'name': 'Cash Buffer'},
+            {'sleeve_code': 'GROWTH_SEMIS', 'name': 'Growth - Semiconductors'},
+            {'sleeve_code': 'ENERGY', 'name': 'Thematic - Energy Transition'},
+            {'sleeve_code': 'HEALTHCARE', 'name': 'Thematic - Healthcare Innovation'}
         ]
     )
 

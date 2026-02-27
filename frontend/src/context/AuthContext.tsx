@@ -6,7 +6,7 @@ import { api } from '@/lib/api-client';
 interface AuthContextType {
   user: any | null;
   isLoading: boolean;
-  login: (formData: URLSearchParams) => Promise<void>;
+  login: (credentials: { email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -23,26 +23,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = async (formData: URLSearchParams) => {
-  try {
-    const response = await api.post('/auth/login', formData, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    });
+  const login = async (credentials: { email: string; password: string }) => {
+    try {
+      const response = await api.post('/auth/login', credentials);
 
-    // 1. Extract the access token from the response body
-    const { access_token } = response.data;
+      // Extract the access token from the response body
+      const { access_token } = response.data;
 
-    // 2. Attach it to all FUTURE requests from the 'api' instance
-    api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+      // Attach it to all FUTURE requests from the 'api' instance
+      api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
-    // 3. Now this call will succeed because the header is present
-    const res = await api.get('/auth/me');
-    setUser(res.data);
-  } catch (error: any) {
-    console.error("Login Error:", error.response?.data || error.message);
-    throw error;
-  }
-};
+      // Now this call will succeed because the header is present
+      const res = await api.get('/auth/me');
+      setUser(res.data);
+    } catch (error: any) {
+      console.error("Login Error:", error.response?.data || error.message);
+      throw error;
+    }
+  };
 
   const logout = async () => {
     await api.post('/auth/logout');

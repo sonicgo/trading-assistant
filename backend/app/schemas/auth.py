@@ -1,6 +1,6 @@
-from typing import Optional, Literal
+from typing import Literal
 from uuid import UUID
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 class ApiModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -23,3 +23,8 @@ class MeResponse(ApiModel):
     user_id: UUID
     email: str
     is_bootstrap_admin: bool = False
+
+
+class ErrorEnvelope(ApiModel):
+    code: str
+    message: str

@@ -1,64 +1,101 @@
-from typing import Generator, Annotated
-from jose import jwt, JWTError
-
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from typing import Annotated
 from uuid import UUID
 
-from app.core.config import settings
-from app.db.session import SessionLocal
+from fastapi import Depends, HTTPException, Request, status
+from jose import JWTError
+from sqlalchemy.orm import Session
+
+from app.core import security
+from app.db.session import get_db
 from app.domain import models
 
-# OAuth2 scheme
-reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/auth/login"
-)
-
-def get_db() -> Generator:
-    try:
-        db = SessionLocal()
-        yield db
-    finally:
-        db.close()
-
 SessionDep = Annotated[Session, Depends(get_db)]
-TokenDep = Annotated[str, Depends(reusable_oauth2)]
 
-def get_current_user(session: SessionDep, token: TokenDep) -> models.User:
+
+def get_current_user(request: Request, db: SessionDep) -> models.User:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+
+    token = auth_header.removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+
     try:
-        # 1. Decode the JWT Access Token
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
-        user_id: str = payload.get("sub")
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token invalid: missing subject",
-            )
+        payload = security.decode_access_token(token)
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token invalid: could not decode",
+            detail="Invalid access token",
         )
-    
-    # 2. Fetch User from the correct table
-    # NOTE: Changed models.User.user_id to handle string/UUID conversion
-    user = session.query(models.User).filter(models.User.user_id == user_id).first()
-    
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid access token",
+        )
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token missing subject",
+        )
+
+    try:
+        parsed_user_id = UUID(str(user_id))
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token subject is not a valid UUID",
+        )
+
+    user = db.query(models.User).filter(models.User.user_id == parsed_user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Check if is_enabled exists on your model (if not, use is_bootstrap_admin)
-    # user.is_enabled might be missing from your earlier SQL force-create
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    if not user.is_enabled:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
+
     return user
+
 
 CurrentUser = Annotated[models.User, Depends(get_current_user)]
 
-def get_current_active_superuser(current_user: CurrentUser) -> models.User:
+
+def require_bootstrap_admin(current_user: CurrentUser) -> models.User:
     if not current_user.is_bootstrap_admin:
         raise HTTPException(
-            status_code=400, detail="The user doesn't have enough privileges"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bootstrap admin privileges required",
         )
     return current_user
+
+
+def require_portfolio_access(
+    portfolio_id: UUID,
+    current_user: CurrentUser,
+    db: SessionDep,
+) -> models.Portfolio:
+    portfolio = db.query(models.Portfolio).filter(models.Portfolio.portfolio_id == portfolio_id).first()
+    if portfolio is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+
+    if portfolio.owner_user_id == current_user.user_id:
+        return portfolio
+
+    membership_model = getattr(models, "PortfolioMembership", None)
+    if membership_model is not None:
+        membership = (
+            db.query(membership_model)
+            .filter(
+                membership_model.portfolio_id == portfolio_id,
+                membership_model.user_id == current_user.user_id,
+            )
+            .first()
+        )
+        if membership is not None:
+            return portfolio
+
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Portfolio access denied")
+
+
+CurrentActiveSuperuser = Annotated[models.User, Depends(require_bootstrap_admin)]

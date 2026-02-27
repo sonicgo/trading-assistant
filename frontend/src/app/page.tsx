@@ -10,16 +10,14 @@ export default function Dashboard() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const router = useRouter();
 
-  // The Query Layer: Fetches portfolios and caches them under the 'portfolios' key
   const { data: portfolios, isLoading: dataLoading } = useQuery({
-  queryKey: ['portfolios'],
-  queryFn: async () => {
-    // This matches @router.get("") in the backend
-    const res = await api.get('/portfolios'); 
-    return res.data;
-  },
-  enabled: !!user,
-});
+    queryKey: ['portfolios'],
+    queryFn: async () => {
+      const res = await api.get('/portfolios');
+      return res.data;
+    },
+    enabled: !!user,
+  });
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -42,7 +40,13 @@ export default function Dashboard() {
         </div>
         <div className="flex gap-4">
           <button 
-            onClick={() => router.push('/registry')}
+            onClick={() => router.push('/portfolios')}
+            className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+          >
+            Portfolios
+          </button>
+          <button 
+            onClick={() => router.push('/registry/instruments')}
             className="px-4 py-2 text-sm font-semibold text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition"
           >
             Asset Registry

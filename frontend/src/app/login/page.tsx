@@ -16,18 +16,15 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const params = new URLSearchParams();
-      params.append('username', email); // FastAPI requirement
-      params.append('password', password);
-
-      await login(params);
+      await login({ email, password });
       
       // If no error thrown, redirect
       router.push('/');
     } catch (err: any) {
       // If err.response is empty, it's likely a Network Error or CORS
       console.error("Login attempt failed:", err);
-      const message = err.response?.data?.detail || "Connection refused. Is the backend running?";
+      const detail = err.response?.data?.detail;
+      const message = Array.isArray(detail) ? detail[0]?.msg || 'Login failed' : detail || "Connection refused. Is the backend running?";
       setError(message);
     }
   };

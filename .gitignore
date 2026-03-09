@@ -46,3 +46,14 @@ Thumbs.db
 # --- Project Specific House Cleaning ---
 # Ignore the redundant nested backend folder if not yet deleted
 backend/backend/
+
+# Trading Logs & Data
+logs/
+*.log
+data/historical/
+data/backtests/
+!data/sample/  # (Keep samples if you want to show the structure)
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*

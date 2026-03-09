@@ -52,6 +52,18 @@ export default function Dashboard() {
             Asset Registry
           </button>
           <button 
+            onClick={() => router.push('/market-data')}
+            className="px-4 py-2 text-sm font-semibold text-green-600 border border-green-600 rounded-lg hover:bg-green-50 transition"
+          >
+            Market Data
+          </button>
+          <button 
+            onClick={() => router.push('/alerts')}
+            className="px-4 py-2 text-sm font-semibold text-amber-600 border border-amber-600 rounded-lg hover:bg-amber-50 transition"
+          >
+            Alerts
+          </button>
+          <button 
             onClick={logout}
             className="px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg transition"
           >

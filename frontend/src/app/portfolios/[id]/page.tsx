@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePortfolio, useUpdatePortfolio } from '@/hooks/use-portfolios-query';
+import { useFreeze, useUnfreezePortfolio } from '@/hooks/use-freeze';
 import { useConstituents, useBulkUpsertConstituents } from '@/hooks/use-constituents';
 import { useListings } from '@/hooks/use-listings';
 import { useSleeves } from '@/hooks/use-sleeves';
@@ -21,6 +22,9 @@ export default function PortfolioDetailPage() {
   const { data: listings } = useListings({ limit: 200 });
   const updatePortfolio = useUpdatePortfolio(portfolioId);
   const bulkUpsert = useBulkUpsertConstituents(portfolioId);
+  const { data: freezeData } = useFreeze(portfolioId);
+  const unfreezeMutation = useUnfreezePortfolio(portfolioId);
+
 
   const [isEditingPortfolio, setIsEditingPortfolio] = useState(false);
   const [portfolioForm, setPortfolioForm] = useState<PortfolioUpdate>({});
@@ -150,6 +154,37 @@ export default function PortfolioDetailPage() {
         {error && (
           <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100">
             {error}
+          </div>
+        )}
+
+        {freezeData?.is_frozen && (
+          <div className="mb-6 p-6 bg-red-50 border-2 border-red-500 rounded-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">🔒</span>
+                <div>
+                  <h2 className="text-xl font-bold text-red-700">PORTFOLIO FROZEN</h2>
+                  <p className="text-sm text-red-600">
+                    Frozen since: {freezeData.freeze?.created_at && new Date(freezeData.freeze.created_at).toLocaleString()}
+                  </p>
+                  {freezeData.freeze?.reason_alert_id && (
+                    <a 
+                      href={`/alerts`}
+                      className="text-sm text-red-600 underline hover:text-red-800"
+                    >
+                      View related alert
+                    </a>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => unfreezeMutation.mutate()}
+                disabled={unfreezeMutation.isPending}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50"
+              >
+                {unfreezeMutation.isPending ? 'Unfreezing...' : 'Unfreeze Portfolio'}
+              </button>
+            </div>
           </div>
         )}
 

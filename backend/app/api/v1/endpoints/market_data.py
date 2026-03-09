@@ -85,7 +85,7 @@ def get_market_fx(
 )
 def refresh_market_data(
     portfolio: Annotated[models.Portfolio, Depends(deps.require_portfolio_access)],
-    current_user: Annotated[models.User, Depends(deps.CurrentUser)],
+    current_user: deps.CurrentUser,
     db: deps.SessionDep,
 ):
     job_id = enqueue_job(

@@ -78,7 +78,11 @@ async def handle_price_refresh(job: JobPayload, ctx_logger: logging.Logger) -> s
 
     try:
         # ── 1. Select provider adapter (MockProvider for Phase 2) ─────────────
-        adapter = MockProvider()
+        adapter = MockProvider(
+            stale_prices=settings.mock_stale_prices,
+            jump_prices=settings.mock_jump_prices,
+            scale_mismatch=settings.mock_scale_mismatch,
+        )
         ctx_logger.info("Using provider: %s", adapter.source_id)
 
         # ── 2. Ingest market data ──────────────────────────────────────────────

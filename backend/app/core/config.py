@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     dq_require_close: bool = True
     dq_fx_stale_max_days: int = 3
 
+    # ── Mock Provider Anomaly Injection (for testing) ───────────────────────────
+    mock_stale_prices: bool = False
+    mock_jump_prices: bool = False
+    mock_scale_mismatch: bool = False
+
     # ── Venue Configuration ────────────────────────────────────────────────────
     venue_lse_tz: str = "Europe/London"
     venue_lse_close_time: str = "16:30"

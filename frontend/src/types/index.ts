@@ -172,3 +172,86 @@ export interface AuthTokenResponse {
   access_token: string;
   token_type: string;
 }
+
+// ============================================================================
+// Market Data Types
+// ============================================================================
+
+export interface PricePoint {
+  price_point_id: string;
+  listing_id: string;
+  as_of: string;
+  price: string;           // DecimalStr from backend
+  currency: string | null;
+  is_close: boolean;
+  source_id: string;
+  created_at: string;
+}
+
+export interface FxRate {
+  fx_rate_id: string;
+  base_ccy: string;
+  quote_ccy: string;
+  as_of: string;
+  rate: string;            // DecimalStr from backend
+  source_id: string;
+  created_at: string;
+}
+
+export interface RefreshResult {
+  job_id: string;
+  status: string;
+}
+
+// ============================================================================
+// Alert Types
+// ============================================================================
+
+export type AlertSeverity = 'INFO' | 'WARN' | 'CRITICAL';
+
+export interface Alert {
+  alert_id: string;
+  portfolio_id: string;
+  listing_id: string | null;
+  severity: AlertSeverity;
+  rule_code: string;
+  title: string;
+  message: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+// ============================================================================
+// Freeze Types
+// ============================================================================
+
+export interface FreezeState {
+  freeze_id: string;
+  portfolio_id: string;
+  is_frozen: boolean;
+  reason_alert_id: string | null;
+  created_at: string;
+  cleared_at: string | null;
+  cleared_by_user_id: string | null;
+}
+
+export interface FreezeStatus {
+  is_frozen: boolean;
+  freeze: FreezeState | null;
+}
+
+// ============================================================================
+// Notification Types
+// ============================================================================
+
+export interface Notification {
+  notification_id: string;
+  owner_user_id: string;
+  severity: string;
+  title: string;
+  body: string | null;
+  created_at: string;
+  read_at: string | null;
+  meta: Record<string, unknown> | null;
+}

@@ -203,6 +203,15 @@ export interface RefreshResult {
   status: string;
 }
 
+export interface SyncResult {
+  portfolio_id: string;
+  total_listings: number;
+  prices_fetched: number;
+  prices_inserted: number;
+  errors: string[];
+  status: string;
+}
+
 // ============================================================================
 // Alert Types
 // ============================================================================
@@ -431,3 +440,44 @@ export interface CsvImportApplyResponse {
 
 export type LedgerBatchesPage = Page<LedgerBatch>;
 export type LedgerEntriesPage = Page<LedgerEntry>;
+
+// ============================================================================
+// Engine Types (Phase 4 - Calculation Engine)
+// ============================================================================
+
+export interface CurrentPosition {
+  listing_id: string;
+  ticker: string;
+  current_quantity: string;
+  current_price_gbp: string;
+  current_value_gbp: string;
+  target_weight_pct: string;
+  current_weight_pct: string;
+  drift_pct: string;
+  is_drifted: boolean;
+}
+
+export interface ProposedTrade {
+  action: 'BUY' | 'SELL';
+  ticker: string;
+  listing_id: string;
+  quantity: string;
+  estimated_value_gbp: string;
+  reason: string;
+}
+
+export interface TradePlanResponse {
+  portfolio_id: string;
+  as_of: string;
+  total_value_gbp: string;
+  cash_balance_gbp: string;
+  positions: CurrentPosition[];
+  trades: ProposedTrade[];
+  projected_post_trade_cash: string;
+  cash_pool_used: string;
+  cash_pool_remaining: string;
+  warnings: string[];
+  is_blocked: boolean;
+  block_reason: string | null;
+  block_message: string | null;
+}

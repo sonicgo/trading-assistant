@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.v1.endpoints import auth, registry, portfolios, market_data, alerts, freeze, notifications, ledger, snapshots, ledger_import
+from app.api.v1.endpoints import auth, registry, portfolios, market_data, alerts, freeze, notifications, ledger, snapshots, ledger_import, engine
 
 # 1. Initialize the FastAPI app first
 app = FastAPI(
@@ -41,6 +41,9 @@ app.include_router(notifications.router, prefix=f"{settings.API_V1_STR}/notifica
 app.include_router(ledger.router, prefix=f"{settings.API_V1_STR}/portfolios", tags=["ledger"])
 app.include_router(snapshots.router, prefix=f"{settings.API_V1_STR}/portfolios", tags=["snapshots"])
 app.include_router(ledger_import.router, prefix=f"{settings.API_V1_STR}/portfolios", tags=["ledger-import"])
+
+# Phase 4 API endpoints (Calculation Engine)
+app.include_router(engine.router, prefix=f"{settings.API_V1_STR}/portfolios", tags=["engine"])
 
 @app.get("/health")
 def health_check():

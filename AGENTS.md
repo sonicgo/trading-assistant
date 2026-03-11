@@ -8,7 +8,9 @@ You are building the Trading Assistant V1. The architecture, business rules, and
 - `implementation/delivery_plan.md`: The roadmap, phased approach, and V1/V2 scope boundaries.
 - `implementation/Phase1_build_playbook.md`: The exact step-by-step execution guide, constraints, and Definition of Done for Phase 1. Implemented.
 - `implementation/Phase2_build_playbook.md`: The exact step-by-step execution guide, constraints, and Definition of Done for Phase 2. Implemented.
-- `implementation/Phase3_build_playbook.md`: The exact step-by-step execution guide, constraints, and Definition of Done for Phase 2. Current phase.
+- `implementation/Phase3_build_playbook.md`: The exact step-by-step execution guide, constraints, and Definition of Done for Phase 2. Implemented.
+- `implementation/Phase4_build_playbook.md`: The exact step-by-step execution guide, constraints, and Definition of Done for Phase 2. Implemented.
+- `implementation/IMPLEMENTATION_REPORT.md`: Summary of what have been implemented.
 
 
 **3. Business & Functional Logic:**

@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, Query
 from app.api import deps
 from app.domain import models
 from app.queue.redis_queue import enqueue_job
-from app.schemas.market_data import PricePointResponse, FxRateResponse, RefreshResponse
+from app.schemas.market_data import PricePointResponse, FxRateResponse, RefreshResponse, SyncResponse
+from app.services.market_data_service import sync_portfolio_prices
+import asyncio
 
 router = APIRouter()
 
@@ -94,3 +96,34 @@ def refresh_market_data(
         str(current_user.user_id),
     )
     return RefreshResponse(job_id=job_id)
+
+
+@router.post(
+    "/{portfolio_id}/market-data/sync",
+    response_model=SyncResponse,
+)
+async def sync_market_data(
+    portfolio: Annotated[models.Portfolio, Depends(deps.require_portfolio_access)],
+    db: deps.SessionDep,
+):
+    """
+    On-demand sync of market prices for portfolio holdings.
+    
+    Fetches latest prices from Yahoo Finance with rate limiting
+    and saves them to the database.
+    """
+    result = await sync_portfolio_prices(
+        db=db,
+        portfolio_id=str(portfolio.portfolio_id),
+    )
+    
+    await asyncio.to_thread(db.commit)
+    
+    return SyncResponse(
+        portfolio_id=result.portfolio_id,
+        total_listings=result.total_listings,
+        prices_fetched=result.prices_fetched,
+        prices_inserted=result.prices_inserted,
+        errors=result.errors,
+        status="completed" if not result.errors else "completed_with_errors",
+    )

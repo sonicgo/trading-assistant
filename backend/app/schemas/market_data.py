@@ -38,3 +38,14 @@ class RefreshResponse(ApiModel):
     status: str = "enqueued"
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SyncResponse(ApiModel):
+    portfolio_id: str
+    total_listings: int
+    prices_fetched: int
+    prices_inserted: int
+    errors: list[str] = []
+    status: str = "completed"
+
+    model_config = ConfigDict(from_attributes=True)

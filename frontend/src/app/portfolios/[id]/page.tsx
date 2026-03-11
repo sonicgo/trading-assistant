@@ -8,6 +8,7 @@ import { useFreeze, useUnfreezePortfolio } from '@/hooks/use-freeze';
 import { useConstituents, useBulkUpsertConstituents } from '@/hooks/use-constituents';
 import { useListings } from '@/hooks/use-listings';
 import { useSleeves } from '@/hooks/use-sleeves';
+import { useSyncMarketData } from '@/hooks/use-market-data';
 import type { PortfolioUpdate, ConstituentItem } from '@/types';
 
 export default function PortfolioDetailPage() {
@@ -24,6 +25,7 @@ export default function PortfolioDetailPage() {
   const bulkUpsert = useBulkUpsertConstituents(portfolioId);
   const { data: freezeData } = useFreeze(portfolioId);
   const unfreezeMutation = useUnfreezePortfolio(portfolioId);
+  const syncMarketData = useSyncMarketData(portfolioId);
 
 
   const [isEditingPortfolio, setIsEditingPortfolio] = useState(false);
@@ -143,10 +145,23 @@ export default function PortfolioDetailPage() {
           </button>
           <div className="flex gap-3">
             <button
+              onClick={() => syncMarketData.mutate()}
+              disabled={syncMarketData.isPending}
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {syncMarketData.isPending ? '⏳ Syncing...' : '🔄 Refresh Prices'}
+            </button>
+            <button
               onClick={() => router.push(`/portfolios/${portfolioId}/ledger`)}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition"
             >
               📒 Ledger
+            </button>
+            <button
+              onClick={() => router.push(`/portfolios/${portfolioId}/assistant`)}
+              className="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition"
+            >
+              🤖 Assistant
             </button>
             <button
               onClick={() => router.push('/')}

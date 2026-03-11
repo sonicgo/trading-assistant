@@ -3,7 +3,7 @@ Trading Assistant Domain Models
 Phase 1 + Phase 2 (Market Data + Data Quality Gate)
 """
 import uuid
-from sqlalchemy import Column, String, Boolean, ForeignKey, func, UniqueConstraint, Numeric, Text, Index, CheckConstraint
+from sqlalchemy import Column, String, Boolean, ForeignKey, func, UniqueConstraint, Numeric, Text, Index, CheckConstraint, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID, TIMESTAMP, JSONB
 from app.core.database import Base
@@ -41,6 +41,7 @@ class Portfolio(Base):
 
     owner = relationship("User", back_populates="portfolios")
     constituents = relationship("PortfolioConstituent", back_populates="portfolio")
+    policy_allocations = relationship("PortfolioPolicyAllocation", back_populates="portfolio")
 
 # --- 2. Registry ---
 class Instrument(Base):
@@ -87,6 +88,27 @@ class PortfolioConstituent(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     portfolio = relationship("Portfolio", back_populates="constituents")
+
+# --- 3B. Policy Allocation (Phase 4) ---
+class PortfolioPolicyAllocation(Base):
+    __tablename__ = "portfolio_policy_allocations"
+    
+    portfolio_policy_allocation_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey("portfolio.portfolio_id"), nullable=False)
+    listing_id = Column(UUID(as_uuid=True), ForeignKey("listing.listing_id"), nullable=False)
+    ticker = Column(String, nullable=False)
+    sleeve_code = Column(String, nullable=False)
+    policy_role = Column(String, nullable=False)
+    target_weight_pct = Column(Numeric(precision=18, scale=8), nullable=True)
+    priority_rank = Column(Integer, nullable=True)
+    policy_hash = Column(String, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    
+    portfolio = relationship("Portfolio", back_populates="policy_allocations")
+    
+    __table_args__ = (
+        UniqueConstraint('portfolio_id', 'policy_hash', 'listing_id', name='uq_policy_allocation'),
+    )
 
 # --- 4. Market Data (Phase 2) ---
 

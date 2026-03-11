@@ -177,41 +177,43 @@ export default function InstrumentsPage() {
             </div>
           ) : (
             <>
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b">
-                  <tr className="text-xs uppercase tracking-wider text-gray-500 font-bold">
-                    <th className="p-4">ISIN</th>
-                    <th className="p-4">Name</th>
-                    <th className="p-4">Type</th>
-                    <th className="p-4">Created</th>
-                    <th className="p-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {data?.items.map((instrument) => (
-                    <tr key={instrument.instrument_id} className="hover:bg-gray-50">
-                      <td className="p-4 font-mono text-sm text-gray-600">{instrument.isin}</td>
-                      <td className="p-4 font-medium text-gray-900">{instrument.name || '-'}</td>
-                      <td className="p-4">
-                        <span className={`text-xs font-bold px-2 py-1 rounded ${getTypeBadgeColor(instrument.instrument_type)}`}>
-                          {instrument.instrument_type}
-                        </span>
-                      </td>
-                      <td className="p-4 text-sm text-gray-500">
-                        {new Date(instrument.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="p-4 text-right">
-                        <button
-                          onClick={() => openEditModal(instrument)}
-                          className="text-sm text-blue-600 hover:text-blue-800 font-semibold"
-                        >
-                          Edit
-                        </button>
-                      </td>
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                <table className="w-full text-left">
+                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
+                    <tr className="text-xs uppercase tracking-wider text-gray-500 font-bold">
+                      <th className="p-4">ISIN</th>
+                      <th className="p-4">Name</th>
+                      <th className="p-4">Type</th>
+                      <th className="p-4">Created</th>
+                      <th className="p-4 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {data?.items.map((instrument) => (
+                      <tr key={instrument.instrument_id} className="hover:bg-gray-50">
+                        <td className="p-4 font-mono text-sm text-gray-600">{instrument.isin}</td>
+                        <td className="p-4 font-medium text-gray-900">{instrument.name || '-'}</td>
+                        <td className="p-4">
+                          <span className={`text-xs font-bold px-2 py-1 rounded ${getTypeBadgeColor(instrument.instrument_type)}`}>
+                            {instrument.instrument_type}
+                          </span>
+                        </td>
+                        <td className="p-4 text-sm text-gray-500">
+                          {new Date(instrument.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="p-4 text-right">
+                          <button
+                            onClick={() => openEditModal(instrument)}
+                            className="text-sm text-blue-600 hover:text-blue-800 font-semibold"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
               {/* Pagination */}
               <div className="flex justify-between items-center p-4 border-t bg-gray-50 text-sm">

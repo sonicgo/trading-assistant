@@ -3,7 +3,7 @@ Trading Assistant Domain Models
 Phase 1 + Phase 2 (Market Data + Data Quality Gate)
 """
 import uuid
-from sqlalchemy import Column, String, Boolean, ForeignKey, func, UniqueConstraint, Numeric, Text
+from sqlalchemy import Column, String, Boolean, ForeignKey, func, UniqueConstraint, Numeric, Text, Index, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID, TIMESTAMP, JSONB
 from app.core.database import Base
@@ -191,3 +191,119 @@ class Notification(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     read_at = Column(TIMESTAMP(timezone=True), nullable=True)
     meta = Column(JSONB, nullable=True)  # references: portfolio_id, alert_id, run_id
+
+
+# --- 7. Book of Record / Ledger (Phase 3) ---
+
+class LedgerBatch(Base):
+    """Atomic posting unit that groups one or more ledger entries."""
+    __tablename__ = "ledger_batches"
+    
+    batch_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey("portfolio.portfolio_id"), nullable=False)
+    submitted_by_user_id = Column(UUID(as_uuid=True), ForeignKey("user.user_id"), nullable=False)
+    source = Column(String, nullable=False)  # UI, CSV_IMPORT, REVERSAL
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    note = Column(Text, nullable=True)
+    meta = Column(JSONB, nullable=True)
+    idempotency_key = Column(String, nullable=True)
+    
+    # Relationships
+    portfolio = relationship("Portfolio")
+    submitted_by = relationship("User")
+    entries = relationship("LedgerEntry", back_populates="batch", cascade="all, delete-orphan")
+    
+    __table_args__ = (
+        Index('ix_ledger_batches_portfolio_created', 'portfolio_id', 'created_at'),
+    )
+
+
+class LedgerEntry(Base):
+    """Append-only economic events that change cash and/or holdings."""
+    __tablename__ = "ledger_entries"
+    
+    entry_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    batch_id = Column(UUID(as_uuid=True), ForeignKey("ledger_batches.batch_id"), nullable=False)
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey("portfolio.portfolio_id"), nullable=False)
+    entry_kind = Column(String, nullable=False)  # CONTRIBUTION, BUY, SELL, ADJUSTMENT, REVERSAL
+    effective_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    listing_id = Column(UUID(as_uuid=True), ForeignKey("listing.listing_id"), nullable=True)
+    quantity_delta = Column(Numeric(precision=28, scale=10), nullable=True)  # Signed: positive=buy/add, negative=sell/remove
+    net_cash_delta_gbp = Column(Numeric(precision=28, scale=10), nullable=False)  # Signed final GBP cash impact
+    fee_gbp = Column(Numeric(precision=28, scale=10), nullable=True)  # Only for BUY/SELL
+    book_cost_delta_gbp = Column(Numeric(precision=28, scale=10), nullable=True)  # For ADJUSTMENT/REVERSAL
+    reversal_of_entry_id = Column(UUID(as_uuid=True), ForeignKey("ledger_entries.entry_id"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    note = Column(Text, nullable=True)
+    meta = Column(JSONB, nullable=True)
+
+    __table_args__ = (
+        Index('ix_ledger_entries_portfolio_effective', 'portfolio_id', 'effective_at'),
+        Index('ix_ledger_entries_batch', 'batch_id'),
+        Index('ix_ledger_entries_portfolio_listing', 'portfolio_id', 'listing_id', 'effective_at'),
+        Index('ix_ledger_entries_reversal', 'reversal_of_entry_id'),
+    )
+
+    # Relationships
+    batch = relationship("LedgerBatch", back_populates="entries")
+    portfolio = relationship("Portfolio")
+    listing = relationship("InstrumentListing")
+    reversal_of = relationship("LedgerEntry", remote_side=[entry_id])
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            "entry_kind IN ('CONTRIBUTION', 'BUY', 'SELL', 'ADJUSTMENT', 'REVERSAL')",
+            name='ck_ledger_entry_kind'
+        ),
+        CheckConstraint(
+            "fee_gbp IS NULL OR fee_gbp >= 0",
+            name='ck_ledger_entry_fee_non_negative'
+        ),
+    )
+
+
+class CashSnapshot(Base):
+    """Fast current-state cash read per portfolio."""
+    __tablename__ = "cash_snapshots"
+    
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey("portfolio.portfolio_id"), primary_key=True)
+    balance_gbp = Column(Numeric(precision=28, scale=10), nullable=False, default=0)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    last_entry_id = Column(UUID(as_uuid=True), ForeignKey("ledger_entries.entry_id"), nullable=True)
+    version_no = Column(Numeric(precision=20, scale=0), nullable=False, default=0)  # Optimistic locking
+    
+    # Relationships
+    portfolio = relationship("Portfolio")
+    last_entry = relationship("LedgerEntry")
+
+
+class HoldingSnapshot(Base):
+    """Fast current-state holdings read per portfolio/listing."""
+    __tablename__ = "holding_snapshots"
+    
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey("portfolio.portfolio_id"), primary_key=True)
+    listing_id = Column(UUID(as_uuid=True), ForeignKey("listing.listing_id"), primary_key=True)
+    quantity = Column(Numeric(precision=28, scale=10), nullable=False, default=0)
+    book_cost_gbp = Column(Numeric(precision=28, scale=10), nullable=False, default=0)
+    avg_cost_gbp = Column(Numeric(precision=28, scale=10), nullable=False, default=0)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    last_entry_id = Column(UUID(as_uuid=True), ForeignKey("ledger_entries.entry_id"), nullable=True)
+    version_no = Column(Numeric(precision=20, scale=0), nullable=False, default=0)  # Optimistic locking
+    
+    # Relationships
+    portfolio = relationship("Portfolio")
+    listing = relationship("InstrumentListing")
+    last_entry = relationship("LedgerEntry")
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            "quantity >= 0",
+            name='ck_holding_snapshot_quantity_non_negative'
+        ),
+        CheckConstraint(
+            "(quantity = 0 AND book_cost_gbp = 0 AND avg_cost_gbp = 0) OR quantity > 0",
+            name='ck_holding_snapshot_cost_consistency'
+        ),
+    )

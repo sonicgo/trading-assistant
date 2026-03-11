@@ -110,9 +110,9 @@ export default function AlertsPage() {
           {isLoading ? (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
               <div className="animate-pulse space-y-4">
-                <div className="h-24 bg-gray-200 rounded"></div>
-                <div className="h-24 bg-gray-200 rounded"></div>
-                <div className="h-24 bg-gray-200 rounded"></div>
+                <div className="h-24 bg-gray-200 rounded-xl"></div>
+                <div className="h-24 bg-gray-200 rounded-xl"></div>
+                <div className="h-24 bg-gray-200 rounded-xl"></div>
               </div>
             </div>
           ) : hasAlerts ? (
@@ -139,7 +139,7 @@ export default function AlertsPage() {
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-500">
                       {formatDate(alert.created_at)}
                     </span>
                   </div>
@@ -159,14 +159,20 @@ export default function AlertsPage() {
               );
             })
           ) : selectedPortfolioId ? (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 text-center">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+              <div className="text-5xl mb-4">🔔</div>
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                {activeOnly ? 'No active alerts' : 'No alerts'}
+              </h3>
               <p className="text-gray-500">
-                {activeOnly ? 'No active alerts for this portfolio' : 'No alerts for this portfolio'}
+                {activeOnly ? 'All alerts have been resolved for this portfolio' : 'No alerts found for this portfolio'}
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 text-center">
-              <p className="text-gray-500">Select a portfolio to view alerts</p>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+              <div className="text-5xl mb-4">📊</div>
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">Select a Portfolio</h3>
+              <p className="text-gray-500">Choose a portfolio above to view its alerts</p>
             </div>
           )}
         </div>

@@ -143,8 +143,14 @@ export default function PortfolioDetailPage() {
           </button>
           <div className="flex gap-3">
             <button
+              onClick={() => router.push(`/portfolios/${portfolioId}/ledger`)}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition"
+            >
+              📒 Ledger
+            </button>
+            <button
               onClick={() => router.push('/')}
-              className="text-sm text-gray-600 hover:text-gray-900"
+              className="text-sm text-gray-600 hover:text-gray-900 px-2"
             >
               Dashboard
             </button>
@@ -275,7 +281,7 @@ export default function PortfolioDetailPage() {
                 <div className="text-sm text-gray-500 space-y-1">
                   <p><span className="font-semibold">Currency:</span> {portfolio?.base_currency}</p>
                   <p><span className="font-semibold">Broker:</span> {portfolio?.broker}</p>
-                  <p><span className="font-semibold">Created:</span> {portfolio && new Date(portfolio.created_at).toLocaleDateString()}</p>
+                  <p className="text-gray-500 text-xs"><span className="font-semibold">Created:</span> {portfolio && new Date(portfolio.created_at).toLocaleDateString()}</p>
                 </div>
               </div>
               <button
@@ -387,28 +393,29 @@ export default function PortfolioDetailPage() {
             </div>
           )}
 
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b text-xs uppercase tracking-wider text-gray-500 font-bold">
-              <tr>
-                <th className="p-4">Listing</th>
-                <th className="p-4">Sleeve</th>
-                <th className="p-4 text-center">Monitored</th>
-                {isEditingConstituents && <th className="p-4 text-right">Actions</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-sm">
-              {editingItems.length > 0 ? (
-                editingItems.map((item) => {
-                  const listing = getListingDetails(item.listing_id);
-                  return (
-                    <tr key={item.listing_id} className="hover:bg-gray-50">
-                      <td className="p-4">
-                        <div className="font-mono font-bold text-gray-900">{listing?.ticker || 'Unknown'}</div>
-                        <div className="text-xs text-gray-500">
-                          {listing?.exchange} • {listing?.trading_currency}
-                          {listing?.price_scale === 'MINOR' && listing?.trading_currency === 'GBP' && ' (GBX)'}
-                        </div>
-                      </td>
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table className="w-full text-left">
+              <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-bold z-10">
+                <tr>
+                  <th className="p-4 text-left">Listing</th>
+                  <th className="p-4 text-left">Sleeve</th>
+                  <th className="p-4 text-center">Monitored</th>
+                  {isEditingConstituents && <th className="p-4 text-right">Actions</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-sm">
+                {editingItems.length > 0 ? (
+                  editingItems.map((item) => {
+                    const listing = getListingDetails(item.listing_id);
+                    return (
+                      <tr key={item.listing_id} className="hover:bg-gray-50">
+                        <td className="p-4">
+                          <div className="font-mono font-bold text-gray-900">{listing?.ticker || 'Unknown'}</div>
+                          <div className="text-xs text-gray-500">
+                            {listing?.exchange} • {listing?.trading_currency}
+                            {listing?.price_scale === 'MINOR' && listing?.trading_currency === 'GBP' && ' (GBX)'}
+                          </div>
+                        </td>
                       <td className="p-4">
                         {isEditingConstituents ? (
                           <select
@@ -453,17 +460,24 @@ export default function PortfolioDetailPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={isEditingConstituents ? 4 : 3} className="p-8 text-center text-gray-500">
-                    {isEditingConstituents 
-                      ? 'Add constituents above to build your portfolio'
-                      : 'No constituents yet. Click "Edit Constituents" to add holdings.'
-                    }
+                  <td colSpan={isEditingConstituents ? 4 : 3} className="p-12 text-center">
+                    <div className="text-4xl mb-3">📊</div>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                      {isEditingConstituents ? 'Add Your First Holding' : 'No Constituents Yet'}
+                    </h3>
+                    <p className="text-gray-500 text-sm">
+                      {isEditingConstituents 
+                        ? 'Use the form above to add holdings to your portfolio'
+                        : 'Click "Edit Constituents" to add holdings to this portfolio.'
+                      }
+                    </p>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

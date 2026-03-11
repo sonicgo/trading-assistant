@@ -211,21 +211,24 @@ export default function ListingsPage() {
             </div>
           ) : (
             <>
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b">
-                  <tr className="text-xs uppercase tracking-wider text-gray-500 font-bold">
-                    <th className="p-4">Ticker</th>
-                    <th className="p-4">Exchange</th>
-                    <th className="p-4">Currency</th>
-                    <th className="p-4">Price Scale</th>
-                    <th className="p-4">Primary</th>
-                    <th className="p-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {data?.items.map((listing) => (
-                    <tr key={listing.listing_id} className="hover:bg-gray-50">
-                      <td className="p-4 font-mono text-sm font-bold text-gray-900">{listing.ticker}</td>
+          <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <table className="w-full text-left">
+              <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
+                <tr className="text-xs uppercase tracking-wider text-gray-500 font-bold">
+                  <th className="p-4 text-left">Ticker</th>
+                  <th className="p-4 text-left">Exchange</th>
+                  <th className="p-4 text-left">Currency</th>
+                  <th className="p-4 text-left">Price Scale</th>
+                  <th className="p-4 text-center">Primary</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {data?.items.map((listing) => (
+                  <tr key={listing.listing_id} className="hover:bg-gray-50">
+                    <td className="p-4">
+                      <span className="font-mono text-sm font-bold text-gray-900">{listing.ticker}</span>
+                    </td>
                       <td className="p-4">
                         <span className="text-xs font-bold px-2 py-1 rounded bg-gray-100 text-gray-700">
                           {listing.exchange}
@@ -263,8 +266,9 @@ export default function ListingsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
 
-              {/* Pagination */}
+            {/* Pagination */}
               <div className="flex justify-between items-center p-4 border-t bg-gray-50 text-sm">
                 <div className="text-gray-600">
                   Showing {data && data.items.length > 0 ? page * pageSize + 1 : 0} - 

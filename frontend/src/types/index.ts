@@ -255,3 +255,179 @@ export interface Notification {
   read_at: string | null;
   meta: Record<string, unknown> | null;
 }
+
+// ============================================================================
+// Ledger Types (Phase 3)
+// ============================================================================
+
+export type EntryKind = 'CONTRIBUTION' | 'BUY' | 'SELL' | 'ADJUSTMENT' | 'REVERSAL';
+export type BatchSource = 'UI' | 'CSV_IMPORT' | 'REVERSAL';
+export type CsvImportProfile = 'positions_gbp_v1';
+
+export interface LedgerEntry {
+  entry_id: string;
+  batch_id: string;
+  portfolio_id: string;
+  entry_kind: EntryKind;
+  effective_at: string;
+  listing_id: string | null;
+  quantity_delta: string | null;
+  net_cash_delta_gbp: string;
+  fee_gbp: string | null;
+  book_cost_delta_gbp: string | null;
+  reversal_of_entry_id: string | null;
+  created_at: string;
+  note: string | null;
+  meta: Record<string, unknown> | null;
+}
+
+export interface LedgerBatch {
+  batch_id: string;
+  portfolio_id: string;
+  submitted_by_user_id: string;
+  source: BatchSource;
+  created_at: string;
+  note: string | null;
+  meta: Record<string, unknown> | null;
+  idempotency_key: string | null;
+  entries: LedgerEntry[];
+}
+
+export interface LedgerEntryCreate {
+  entry_id?: string;
+  entry_kind: EntryKind;
+  effective_at: string;
+  listing_id?: string;
+  quantity_delta?: string;
+  net_cash_delta_gbp: string;
+  fee_gbp?: string;
+  book_cost_delta_gbp?: string;
+  note?: string;
+  meta?: Record<string, unknown>;
+}
+
+export interface LedgerBatchCreate {
+  batch_id?: string;
+  idempotency_key?: string;
+  entries: LedgerEntryCreate[];
+  note?: string;
+  meta?: Record<string, unknown>;
+}
+
+export interface LedgerReversalRequest {
+  batch_id?: string;
+  idempotency_key?: string;
+  entry_ids: string[];
+  note?: string;
+}
+
+export interface CashSnapshot {
+  portfolio_id: string;
+  balance_gbp: string;
+  updated_at: string;
+  last_entry_id: string | null;
+  version_no: number;
+}
+
+export interface HoldingSnapshot {
+  portfolio_id: string;
+  listing_id: string;
+  quantity: string;
+  book_cost_gbp: string;
+  avg_cost_gbp: string;
+  updated_at: string;
+  last_entry_id: string | null;
+  version_no: number;
+}
+
+export interface HoldingSnapshotList {
+  portfolio_id: string;
+  holdings: HoldingSnapshot[];
+  total_book_cost_gbp: string;
+}
+
+export interface ImportTargetHolding {
+  ticker: string;
+  listing_id: string;
+  target_quantity: string;
+  target_book_cost_gbp: string;
+  investment_name: string;
+}
+
+export interface ImportBasisVersion {
+  cash_snapshot_version: number;
+  holding_versions: Record<string, number>;
+}
+
+export interface ImportSummary {
+  holding_rows: number;
+  cash_rows: number;
+  errors: number;
+  warnings: number;
+}
+
+export interface ImportValidationError {
+  row_number: number | null;
+  field: string | null;
+  message: string;
+}
+
+export interface ImportValidationWarning {
+  row_number: number | null;
+  field: string | null;
+  message: string;
+}
+
+export interface ProposedLedgerEntry {
+  entry_kind: EntryKind;
+  listing_id: string | null;
+  quantity_delta: string | null;
+  net_cash_delta_gbp: string;
+  fee_gbp: string;
+  book_cost_delta_gbp: string | null;
+  note: string | null;
+}
+
+export interface CsvImportPreviewRequest {
+  csv_profile: CsvImportProfile;
+  idempotency_key?: string;
+  file_content_base64: string;
+}
+
+export interface CsvImportPreviewResponse {
+  csv_profile: CsvImportProfile;
+  source_file_sha256: string;
+  portfolio_id: string;
+  portfolio_label: string;
+  effective_at: string;
+  basis: ImportBasisVersion;
+  summary: ImportSummary;
+  normalized_targets: {
+    cash_target_gbp: string;
+    holdings: ImportTargetHolding[];
+  };
+  proposed_entries: ProposedLedgerEntry[];
+  warnings: ImportValidationWarning[];
+  errors: ImportValidationError[];
+  plan_hash: string;
+}
+
+export interface CsvImportApplyRequest {
+  csv_profile: CsvImportProfile;
+  plan_hash: string;
+  source_file_sha256: string;
+  effective_at: string;
+  basis: ImportBasisVersion;
+  proposed_entries: ProposedLedgerEntry[];
+  idempotency_key?: string;
+}
+
+export interface CsvImportApplyResponse {
+  batch_id: string;
+  entries_posted: number;
+  cash_snapshot: CashSnapshot;
+  holding_snapshots: HoldingSnapshot[];
+}
+
+export type LedgerBatchesPage = Page<LedgerBatch>;
+export type LedgerEntriesPage = Page<LedgerEntry>;

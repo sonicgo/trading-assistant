@@ -26,7 +26,7 @@ export function PortfolioSelector({
       <select
         value={selectedId || ''}
         onChange={handleChange}
-        className="w-full p-3 border rounded-xl bg-gray-50 text-sm"
+        className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
       >
         <option value="">
           {isLoading ? 'Loading...' : 'Select a portfolio'}

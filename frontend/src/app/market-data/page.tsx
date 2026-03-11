@@ -87,42 +87,50 @@ export default function MarketDataPage() {
               </div>
             </div>
           ) : hasData ? (
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 border-b text-xs uppercase tracking-wider text-gray-500 font-bold">
-                <tr>
-                  <th className="p-4">Ticker</th>
-                  <th className="p-4">Price</th>
-                  <th className="p-4">Currency</th>
-                  <th className="p-4">Type</th>
-                  <th className="p-4">As Of</th>
-                  <th className="p-4">Source</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
-                {prices.map((price) => (
-                  <tr key={price.price_point_id} className="hover:bg-gray-50">
-                    <td className="p-4">
-                      <span className="font-mono font-bold text-gray-900">
-                        {getTicker(price.listing_id)}
-                      </span>
-                    </td>
-                    <td className="p-4 font-mono">{price.price}</td>
-                    <td className="p-4 text-gray-600">{price.currency || '-'}</td>
-                    <td className="p-4">
-                      <span className={`text-xs font-bold px-2 py-1 rounded ${
-                        price.is_close 
-                          ? 'bg-purple-100 text-purple-700' 
-                          : 'bg-green-100 text-green-700'
-                      }`}>
-                        {price.is_close ? 'Close' : 'Live'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-gray-600">{formatDate(price.as_of)}</td>
-                    <td className="p-4 text-gray-500">{price.source_id}</td>
+            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+              <table className="w-full text-left">
+                <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-bold z-10">
+                  <tr>
+                    <th className="p-4 text-left">Ticker</th>
+                    <th className="p-4 text-right">Price</th>
+                    <th className="p-4 text-left">Currency</th>
+                    <th className="p-4 text-left">Type</th>
+                    <th className="p-4 text-left">As Of</th>
+                    <th className="p-4 text-left">Source</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-sm">
+                  {prices.map((price) => (
+                    <tr key={price.price_point_id} className="hover:bg-gray-50">
+                      <td className="p-4">
+                        <span className="font-mono font-bold text-gray-900">
+                          {getTicker(price.listing_id)}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <span className="font-mono tabular-nums text-emerald-600">{price.price}</span>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-xs font-bold px-2 py-1 rounded bg-gray-100 text-gray-700">
+                          {price.currency || '-'}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${
+                          price.is_close
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {price.is_close ? 'Close' : 'Live'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-500 text-xs">{formatDate(price.as_of)}</td>
+                      <td className="p-4 text-gray-500 text-xs">{price.source_id}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : selectedPortfolioId ? (
             <div className="p-8 text-center text-gray-500">
               No price data available for this portfolio
@@ -153,30 +161,34 @@ export default function MarketDataPage() {
               </div>
             </div>
           ) : hasFxData ? (
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 border-b text-xs uppercase tracking-wider text-gray-500 font-bold">
-                <tr>
-                  <th className="p-4">Pair</th>
-                  <th className="p-4">Rate</th>
-                  <th className="p-4">As Of</th>
-                  <th className="p-4">Source</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
-                {fxRates.map((fx) => (
-                  <tr key={fx.fx_rate_id} className="hover:bg-gray-50">
-                    <td className="p-4">
-                      <span className="font-mono font-bold text-gray-900">
-                        {fx.base_ccy}/{fx.quote_ccy}
-                      </span>
-                    </td>
-                    <td className="p-4 font-mono">{fx.rate}</td>
-                    <td className="p-4 text-gray-600">{formatDate(fx.as_of)}</td>
-                    <td className="p-4 text-gray-500">{fx.source_id}</td>
+            <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+              <table className="w-full text-left">
+                <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-bold z-10">
+                  <tr>
+                    <th className="p-4 text-left">Pair</th>
+                    <th className="p-4 text-right">Rate</th>
+                    <th className="p-4 text-left">As Of</th>
+                    <th className="p-4 text-left">Source</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-sm">
+                  {fxRates.map((fx) => (
+                    <tr key={fx.fx_rate_id} className="hover:bg-gray-50">
+                      <td className="p-4">
+                        <span className="font-mono font-bold text-gray-900">
+                          {fx.base_ccy}/{fx.quote_ccy}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <span className="font-mono tabular-nums text-emerald-600">{fx.rate}</span>
+                      </td>
+                      <td className="p-4 text-gray-500 text-xs">{formatDate(fx.as_of)}</td>
+                      <td className="p-4 text-gray-500 text-xs">{fx.source_id}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : selectedPortfolioId ? (
             <div className="p-8 text-center text-gray-500">
               No FX data available for this portfolio

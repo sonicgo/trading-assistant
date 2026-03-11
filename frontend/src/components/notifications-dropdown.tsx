@@ -113,7 +113,7 @@ export function NotificationsDropdown() {
         
         {/* Unread Badge */}
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+          <span className="absolute top-1 right-1 flex items-center justify-center w-5 h-5 text-xs font-bold tabular-nums text-white bg-red-500 rounded-full">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -169,7 +169,7 @@ export function NotificationsDropdown() {
                         )}
                         
                         {/* Timestamp */}
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-500 mt-1">
                           {formatTime(notification.created_at)}
                         </p>
                       </div>

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from decimal import Decimal, ROUND_HALF_UP
 
 from app.domain.engine import AssetPosition, ProposedTrade, RunInputSnapshot, TradePlan
@@ -87,17 +88,20 @@ def generate_trade_plan(
             )
             continue
 
-        quantity_to_sell = _q(excess_value / position.current_price_gbp, PRECISION)
+        # Calculate integer shares to sell using floor
+        target_shares = math.floor(target_value / position.current_price_gbp)
+        current_shares = math.floor(position.current_value_gbp / position.current_price_gbp)
+        quantity_to_sell = current_shares - target_shares
         if quantity_to_sell <= 0:
             continue
 
-        sell_value = _q(quantity_to_sell * position.current_price_gbp, PRECISION)
+        sell_value = _q(Decimal(quantity_to_sell) * position.current_price_gbp, PRECISION)
         candidate_trades.append(
             ProposedTrade(
                 action="SELL",
                 ticker=position.ticker,
                 listing_id=position.listing_id,
-                quantity=quantity_to_sell,
+                quantity=Decimal(quantity_to_sell),
                 estimated_value_gbp=sell_value,
                 reason="DRIFT_ABOVE_THRESHOLD",
             )
@@ -126,21 +130,22 @@ def generate_trade_plan(
             )
             continue
 
-        buy_value = _q(min(deficit_value, projected_cash_pool), PRECISION)
-        if buy_value <= 0:
-            continue
-
-        quantity_to_buy = _q(buy_value / position.current_price_gbp, PRECISION)
+        # Calculate maximum affordable shares with available cash using floor
+        max_affordable_shares = math.floor(projected_cash_pool / position.current_price_gbp)
+        target_shares = math.floor(target_value / position.current_price_gbp)
+        current_shares = math.floor(position.current_value_gbp / position.current_price_gbp)
+        desired_shares = target_shares - current_shares
+        quantity_to_buy = min(max_affordable_shares, desired_shares)
         if quantity_to_buy <= 0:
             continue
 
-        buy_value = _q(quantity_to_buy * position.current_price_gbp, PRECISION)
+        buy_value = _q(Decimal(quantity_to_buy) * position.current_price_gbp, PRECISION)
         candidate_trades.append(
             ProposedTrade(
                 action="BUY",
                 ticker=position.ticker,
                 listing_id=position.listing_id,
-                quantity=quantity_to_buy,
+                quantity=Decimal(quantity_to_buy),
                 estimated_value_gbp=buy_value,
                 reason="DRIFT_BELOW_THRESHOLD",
             )

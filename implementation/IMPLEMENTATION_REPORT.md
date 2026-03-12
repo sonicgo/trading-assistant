@@ -867,6 +867,81 @@ docker compose run --rm ui npx tsc --noEmit
 
 ---
 
+## Critical Bug Fixes (Post-Phase 6)
+
+### Fix 1: GBp Currency Normalization
+
+**Problem:** Portfolio valuation was failing to normalize GBp (pence) prices to GBP, causing wildly inflated position values. For example, 13 shares of CSH2 priced at 122,617 GBp were valued at £1,594,028.52 instead of the correct £15,940.29.
+
+**Root Cause:** The valuation logic used raw price values without checking currency. Yahoo Finance returns UK ETF prices in pence (GBp), not pounds (GBP).
+
+**Solution:** Added `_normalize_price_to_gbp()` helper functions in:
+- `backend/app/api/v1/endpoints/engine.py` (lines 80-90)
+- `backend/app/api/v1/endpoints/dashboard.py` (lines 20-28)
+
+**Implementation:**
+```python
+def _normalize_price_to_gbp(price: Decimal, currency: str | None) -> Decimal:
+    """Normalize price to GBP base currency.
+    
+    If the price currency is GBp or GBX (pence), convert to GBP by dividing by 100.
+    """
+    if currency == "GBp" or currency == "GBX":
+        return price / Decimal("100")
+    return price
+```
+
+**Key Design Decisions:**
+- Uses strict equality (`==`) without `.lower()` to avoid accidentally dividing GBP prices
+- Checks for both "GBp" (Yahoo Finance format) and "GBX" (alternative pence ticker)
+- Returns price unchanged for all other currencies (including "GBP")
+- Applied in both dashboard valuation and engine trade plan calculation
+
+**Files Modified:**
+- `backend/app/api/v1/endpoints/engine.py`
+- `backend/app/api/v1/endpoints/dashboard.py`
+
+---
+
+### Fix 2: Integer Share Quantities
+
+**Problem:** The recommendation engine was outputting fractional shares (e.g., 921.593), but UK ETFs must be traded in whole units only.
+
+**Root Cause:** Quantity calculation used raw decimal division without converting to integer shares.
+
+**Solution:** Modified `backend/app/services/engine_calculator.py` to use `math.floor()` for calculating target share counts.
+
+**Implementation:**
+
+**SELL Logic:**
+```python
+# Calculate integer shares to sell using floor
+target_shares = math.floor(target_value / position.current_price_gbp)
+current_shares = math.floor(position.current_value_gbp / position.current_price_gbp)
+quantity_to_sell = current_shares - target_shares
+```
+
+**BUY Logic:**
+```python
+# Calculate maximum affordable shares with available cash using floor
+max_affordable_shares = math.floor(projected_cash_pool / position.current_price_gbp)
+target_shares = math.floor(target_value / position.current_price_gbp)
+current_shares = math.floor(position.current_value_gbp / position.current_price_gbp)
+desired_shares = target_shares - current_shares
+quantity_to_buy = min(max_affordable_shares, desired_shares)
+```
+
+**Key Design Decisions:**
+- Uses `math.floor()` strictly (no rounding up for buys) to prevent exceeding available cash
+- Calculates target shares from target value, then derives trade quantity as the difference
+- Respects cash pool limits by taking `min(affordable, desired)`
+- Quantities wrapped in `Decimal()` to maintain type consistency with ProposedTrade model
+
+**Files Modified:**
+- `backend/app/services/engine_calculator.py`
+
+---
+
 ## Future Roadmap (Beyond Phase 6)
 
 ### Phase 7: Advanced Order Management
@@ -952,6 +1027,7 @@ The system successfully implements the Boglehead passive investment philosophy t
 
 ---
 
-*Report generated: March 11, 2026*
+*Report generated: March 12, 2026*
 *Implementation: Phases 1-6 Complete (Full V1 Implementation)*
+*Bug Fixes: GBp Currency Normalization, Integer Share Quantities*
 *Total Lines of Code: ~10,000+ (backend) + ~6,500+ (frontend)*

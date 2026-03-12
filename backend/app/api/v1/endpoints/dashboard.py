@@ -10,11 +10,21 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, true
 from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.domain import models
+
+
+def _normalize_price_to_gbp(price: Decimal, currency: str | None) -> Decimal:
+    """Normalize price to GBP base currency.
+
+    If the price currency is GBp or GBX (pence), convert to GBP by dividing by 100.
+    """
+    if currency == "GBp" or currency == "GBX":
+        return price / Decimal("100")
+    return price
 
 router = APIRouter()
 
@@ -113,7 +123,7 @@ def get_dashboard_summary(
         .all()
     )
     
-    # Get latest prices
+    # Get latest prices for all holdings (most recent available, even if not today)
     listing_ids = [h.listing_id for h, _, _ in holdings_query]
     latest_prices = {}
     for listing_id in listing_ids:
@@ -121,7 +131,7 @@ def get_dashboard_summary(
             db.query(models.PricePoint)
             .filter(
                 models.PricePoint.listing_id == listing_id,
-                models.PricePoint.is_close == True,
+                models.PricePoint.is_close == true(),
             )
             .order_by(desc(models.PricePoint.as_of))
             .first()
@@ -139,14 +149,16 @@ def get_dashboard_summary(
     # Build allocation map
     allocation_map = {a.listing_id: a for a in allocations}
     
-    # Calculate holding values
+    # Calculate holding values with currency normalization
     holdings_value = Decimal("0")
     sleeve_values: dict[str, Decimal] = {}
     
     for holding, listing, instrument in holdings_query:
         price = latest_prices.get(holding.listing_id)
         if price:
-            value = holding.quantity * price.price
+            # Normalize GBp (pence) to GBP if needed
+            normalized_price = _normalize_price_to_gbp(price.price, price.currency)
+            value = holding.quantity * normalized_price
             holdings_value += value
             
             # Get sleeve from allocation

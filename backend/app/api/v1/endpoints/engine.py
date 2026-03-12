@@ -77,6 +77,16 @@ def _to_decimal(value: str | int | float | Decimal | None) -> Decimal:
     return Decimal(str(value))
 
 
+def _normalize_price_to_gbp(price: Decimal, currency: str | None) -> Decimal:
+    """Normalize price to GBP base currency.
+
+    If the price currency is GBp or GBX (pence), convert to GBP by dividing by 100.
+    """
+    if currency == "GBp" or currency == "GBX":
+        return price / Decimal("100")
+    return price
+
+
 def _build_run_input_snapshot(snapshot_data: dict) -> RunInputSnapshot:
     """Transform engine_inputs snapshot_data into RunInputSnapshot for calculator."""
     portfolio_id = UUID(snapshot_data["portfolio_id"])
@@ -99,7 +109,9 @@ def _build_run_input_snapshot(snapshot_data: dict) -> RunInputSnapshot:
     for holding in snapshot_data["holding_snapshots"]:
         price_info = price_by_listing.get(holding["listing_id"])
         if price_info:
-            price = _to_decimal(price_info["price"])
+            raw_price = _to_decimal(price_info["price"])
+            currency = price_info.get("currency")
+            price = _normalize_price_to_gbp(raw_price, currency)
             quantity = _to_decimal(holding["quantity"])
             total_value += price * quantity
 
@@ -113,7 +125,9 @@ def _build_run_input_snapshot(snapshot_data: dict) -> RunInputSnapshot:
 
         ticker = holding.get("ticker") or allocation.get("ticker", "")
         current_quantity = _to_decimal(holding["quantity"])
-        current_price_gbp = _to_decimal(price_info["price"])
+        raw_price = _to_decimal(price_info["price"])
+        currency = price_info.get("currency")
+        current_price_gbp = _normalize_price_to_gbp(raw_price, currency)
         current_value_gbp = current_quantity * current_price_gbp
         target_weight_pct = _to_decimal(allocation.get("target_weight_pct"))
 

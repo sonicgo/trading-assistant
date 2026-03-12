@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { useInstruments, useCreateInstrument, useUpdateInstrument } from '@/hooks/use-instruments';
 import type { Instrument, InstrumentCreate, InstrumentUpdate, InstrumentType } from '@/types';
 
 export default function InstrumentsPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+  }, [user, authLoading, router]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isinFilter, setIsinFilter] = useState('');
   const [page, setPage] = useState(0);

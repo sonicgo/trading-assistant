@@ -12,6 +12,7 @@ Constituent bulk-upsert semantics (PUT /portfolios/{id}/constituents):
 Tenancy is enforced on every scoped endpoint via `require_portfolio_access`.
 """
 from typing import Annotated
+import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -195,3 +196,83 @@ def bulk_upsert_constituents(
 
     db.commit()
     return schemas.ConstituentBulkUpsertResponse(updated_count=len(data.items))
+
+
+# ===========================================================================
+# Policy Allocations (Manifesto Targets)
+# ===========================================================================
+
+@router.get(
+    "/{portfolio_id}/allocations",
+    response_model=list[schemas.PolicyAllocationResponse],
+)
+def get_policy_allocations(
+    portfolio: Annotated[models.Portfolio, Depends(deps.require_portfolio_access)],
+    db: deps.SessionDep,
+):
+    """Get all policy allocations (target weights) for a portfolio."""
+    allocations = (
+        db.query(models.PortfolioPolicyAllocation)
+        .filter(models.PortfolioPolicyAllocation.portfolio_id == portfolio.portfolio_id)
+        .order_by(models.PortfolioPolicyAllocation.sleeve_code)
+        .all()
+    )
+    return allocations
+
+
+@router.put(
+    "/{portfolio_id}/allocations",
+    response_model=schemas.PolicyAllocationBulkResponse,
+)
+def update_policy_allocations(
+    data: schemas.PolicyAllocationBulkUpdate,
+    portfolio: Annotated[models.Portfolio, Depends(deps.require_portfolio_access)],
+    db: deps.SessionDep,
+):
+    """Update all policy allocations for a portfolio (replaces existing)."""
+    portfolio_id = portfolio.portfolio_id
+    
+    # Validate total weight doesn't exceed 100%
+    total_weight = sum(a.target_weight_pct for a in data.allocations)
+    if total_weight > 100:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Total target weight ({total_weight}%) exceeds 100%"
+        )
+    
+    # Delete existing allocations
+    db.query(models.PortfolioPolicyAllocation).filter(
+        models.PortfolioPolicyAllocation.portfolio_id == portfolio_id
+    ).delete(synchronize_session=False)
+    
+    # Create new allocations
+    policy_hash = str(uuid.uuid4())[:8]  # Simple hash for this policy version
+    for item in data.allocations:
+        # Verify listing exists
+        listing = db.query(models.InstrumentListing).filter(
+            models.InstrumentListing.listing_id == item.listing_id
+        ).first()
+        if not listing:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Listing {item.listing_id} not found",
+            )
+        
+        db.add(
+            models.PortfolioPolicyAllocation(
+                portfolio_id=portfolio_id,
+                listing_id=item.listing_id,
+                ticker=item.ticker,
+                sleeve_code=item.sleeve_code,
+                policy_role=item.policy_role,
+                target_weight_pct=item.target_weight_pct,
+                policy_hash=policy_hash,
+            )
+        )
+    
+    db.commit()
+    return schemas.PolicyAllocationBulkResponse(
+        status="success",
+        updated_count=len(data.allocations),
+        total_weight_pct=total_weight,
+    )

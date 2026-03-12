@@ -11,6 +11,7 @@ from app.schemas.common import ApiModel, DecimalStr
 class PricePointResponse(ApiModel):
     price_point_id: uuid.UUID
     listing_id: uuid.UUID
+    ticker: str
     as_of: datetime
     price: DecimalStr
     currency: str | None
@@ -36,6 +37,12 @@ class FxRateResponse(ApiModel):
 class RefreshResponse(ApiModel):
     job_id: str
     status: str = "enqueued"
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SyncRequest(ApiModel):
+    incremental: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

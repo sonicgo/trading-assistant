@@ -1,13 +1,20 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { PortfolioSelector } from '@/components/portfolio-selector';
 import { useMarketPrices, useMarketFx, useRefreshMarketData } from '@/hooks/use-market-data';
 import { useListings } from '@/hooks/use-listings';
 
 export default function MarketDataPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+  }, [user, authLoading, router]);
+
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
 
   const { data: prices, isLoading: pricesLoading } = useMarketPrices(selectedPortfolioId || undefined);

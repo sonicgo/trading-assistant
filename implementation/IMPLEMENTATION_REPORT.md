@@ -350,6 +350,142 @@ EntryKind = 'CONTRIBUTION' | 'BUY' | 'SELL' | 'ADJUSTMENT' | 'REVERSAL'
 | Trade Plan UI | `frontend/src/components/engine/trade-plan.tsx` | Component with drift visualization |
 | Assistant Page | `frontend/src/app/portfolios/[id]/assistant/page.tsx` | Page wrapper |
 
+---
+
+### Phase 5: Automation Foundation
+
+**Purpose:** Establish the infrastructure for unattended operations with execution tracking and data retention.
+
+**Deliverables:**
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Scheduler Service | `backend/app/services/scheduler.py` | APScheduler with Europe/London timezone |
+| Scheduler Integration | `backend/app/main.py` | FastAPI lifespan context manager |
+| Execution Log Model | `backend/app/domain/models.py` | Job execution audit trail |
+| Retention Job | `backend/app/services/jobs/retention.py` | Weekly cleanup of old execution logs |
+| Notification Config Model | `backend/app/domain/models.py` | Per-portfolio notification settings |
+| Retention Tests | `backend/tests/test_retention.py` | 7 comprehensive test cases |
+
+**Scheduler Configuration:**
+- **Timezone:** Europe/London (using `zoneinfo`)
+- **Retention Schedule:** Every Sunday at 02:00 London time
+- **Retention Period:** 30 days for execution logs
+- **Single-Worker Guard:** Prevents duplicate APScheduler executions
+
+**Execution Logger Pattern:**
+```python
+async with execution_logger("cleanup_old_logs") as meta:
+    result = await cleanup_function()
+    meta["rows_deleted"] = result
+# Automatically logs RUNNING -> SUCCESS/FAILED with full traceback
+```
+
+---
+
+### Phase 5: Recommendation Execution Capture
+
+**Purpose:** Bridge the gap between recommendations and the ledger with full audit trail.
+
+**Deliverables:**
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Recommendation Batch Model | `backend/app/domain/models.py` | Status tracking (PENDING/EXECUTED/IGNORED) |
+| Recommendation Line Model | `backend/app/domain/models.py` | Individual trade lines with execution tracking |
+| Audit Event Model | `backend/app/domain/models.py` | Durable append-only audit trail |
+| Execution Service | `backend/app/services/execution_service.py` | Translation logic from recommendations to ledger |
+| Execution API | `backend/app/api/v1/endpoints/recommendations.py` | Execute and ignore endpoints |
+| Execute Modal | `frontend/src/components/recommendations/execute-modal.tsx` | Form for executed prices/fees |
+| Ignore Modal | `frontend/src/components/recommendations/ignore-modal.tsx` | Dismissal with optional reason |
+| Recommendation Detail Page | `frontend/src/app/portfolios/[id]/recommendations/[batch_id]/page.tsx` | Full execution workflow |
+| Execution Tests | `backend/tests/test_execution_service.py` | 11 test cases |
+
+**Math Rules:**
+- **BUY:** `quantity_delta > 0`, `net_cash_delta_gbp < 0` (cash outflow)
+- **SELL:** `quantity_delta < 0`, `net_cash_delta_gbp > 0` (cash inflow)
+- **Fees:** Deducted from cash impact for both BUY and SELL
+
+**Idempotency Guard:**
+```python
+if batch.status != "PENDING":
+    raise DoubleExecutionError("Recommendation batch already executed")
+```
+
+**API Endpoints:**
+- `POST /api/v1/portfolios/{id}/recommendations/{batch_id}/execute` - Execute batch
+- `POST /api/v1/portfolios/{id}/recommendations/{batch_id}/ignore` - Ignore batch
+
+---
+
+### Phase 6: Dashboard Reads
+
+**Purpose:** Provide a command center view of portfolio health with valuations, drift, and activity.
+
+**Deliverables:**
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Dashboard API | `backend/app/api/v1/endpoints/dashboard.py` | Aggregated summary endpoint |
+| Dashboard Hook | `frontend/src/hooks/use-dashboard.ts` | TanStack Query with 30s refresh |
+| Value Summary Card | `frontend/src/components/dashboard/value-summary-card.tsx` | Portfolio valuation overview |
+| Sleeve Allocations Table | `frontend/src/components/dashboard/sleeve-allocations-table.tsx` | Target vs current weights |
+| Activity Feed | `frontend/src/components/dashboard/activity-feed.tsx` | Recent actions list |
+| Portfolio Detail Page | `frontend/src/app/portfolios/[id]/page.tsx` | Redesigned dashboard layout |
+
+**Dashboard Features:**
+- **Total Portfolio Value:** Cash + Holdings (real-time)
+- **Drift Warning:** Visual indicator when any sleeve exceeds 5% drift
+- **Freeze Status:** Prominent banner when portfolio is frozen
+- **Sleeve Allocations:** Table with target vs current weights and drift
+- **Activity Feed:** Last 5 actions (executions, ignores, imports, syncs)
+- **Auto-refresh:** Dashboard updates every 30 seconds
+
+**Data Sources:**
+- Cash Snapshots → Current cash balance
+- Holding Snapshots + Price Points → Holdings value
+- Policy Allocations → Target weights
+- Audit Events → Activity feed
+
+---
+
+### Phase 6: Housekeeping
+
+**Purpose:** Ensure data safety and system maintainability with backup/restore procedures.
+
+**Deliverables:**
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Backup Script | `scripts/backup_db.sh` | pg_dump wrapper with compression |
+| Restore Script | `scripts/restore_db.sh` | Database restoration with verification |
+| Operations Runbook | `docs/RUNBOOK.md` | Complete operational procedures |
+| Dockerfile Update | `backend/Dockerfile` | postgresql-client tools added |
+
+**Backup Features:**
+- **Timestamped:** `trading_assistant_YYYYMMDD_HHMMSS.sql.gz`
+- **Compressed:** `--compress` flag for gzip compression
+- **Automatic Cleanup:** Keeps last 10 backups
+- **Location:** `./backups/` directory
+
+**Restore Features:**
+- **Interactive Confirmation:** Requires user confirmation (bypass with `--force`)
+- **Service Management:** Stops API/worker during restore
+- **Verification:** Checks table count after restore
+- **Supports:** Both `.sql` and `.sql.gz` files
+
+**RUNBOOK.md Sections:**
+1. Starting and Stopping the Application
+2. Database Backup and Restore
+3. Monitoring and Logs (including scheduler logs)
+4. Troubleshooting (common issues and solutions)
+5. Health Checks
+
+**Testing:**
+- Backup created successfully: 44KB compressed
+- All scripts tested via SSH bridge
+- Help documentation verified for both scripts
+
 **Pipeline Architecture:**
 
 ```
@@ -603,6 +739,21 @@ if price.as_of < stale_cutoff:
 | `notifications` | User messages | notification_id, owner_user_id, severity, title, body, read_at |
 | `task_runs` | Background jobs | task_id, task_type, status, started_at, completed_at |
 
+### Phase 5: Automation
+
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
+| `execution_logs` | Job audit trail | execution_log_id, job_name, status, started_at, completed_at, error_message |
+| `notification_configs` | External alerts | notification_config_id, portfolio_id, apprise_url, is_active |
+
+### Phase 5: Recommendation Execution
+
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
+| `recommendation_batches` | Trade recommendations | recommendation_batch_id, portfolio_id, status, generated_at, executed_at |
+| `recommendation_lines` | Individual trades | recommendation_line_id, action, proposed_quantity, executed_quantity, status |
+| `audit_events` | Durable audit trail | audit_event_id, event_type, entity_type, entity_id, occurred_at, summary |
+
 ---
 
 ## Testing Strategy
@@ -614,6 +765,8 @@ if price.as_of < stale_cutoff:
 | `tests/test_engine_inputs.py` | 6 | World State Gatherer, staleness checks, freeze states |
 | `tests/test_engine_calculator.py` | 13 | Deterministic math, drift thresholds, order limits |
 | `tests/test_yfinance_adapter.py` | 9 | LSE ticker rule, live price fetch, FX rates |
+| `tests/test_retention.py` | 7 | Execution log cleanup, scheduled jobs |
+| `tests/test_execution_service.py` | 11 | Recommendation execution, ignore, audit trail |
 
 **Key Test Scenarios:**
 - 3-day staleness blocking
@@ -629,6 +782,10 @@ if price.as_of < stale_cutoff:
 - Live VWRP price fetch from Yahoo Finance
 - Decimal precision in price quotes
 - FX rate fetching (GBP/USD)
+- Execution log creation and cleanup
+- Double-execution prevention
+- Ignore workflow and audit trail
+- Ledger entry creation from recommendations
 
 ### Frontend
 
@@ -636,6 +793,7 @@ if price.as_of < stale_cutoff:
 - Zero type errors: `npx tsc --noEmit` passes
 - TanStack Query for server state management
 - Real-time UI updates on data changes
+- Dashboard auto-refresh (30-second intervals)
 
 ---
 
@@ -696,23 +854,33 @@ docker compose run --rm ui npx tsc --noEmit
 
 ---
 
-## Future Roadmap (Beyond Phase 4)
+## Phase Completion Status
 
-### Phase 5: Order Generation
+| Phase | Status | Key Deliverables |
+|-------|--------|------------------|
+| Phase 1: Registry | ✅ Complete | Instruments, Listings, Sleeves, Portfolios |
+| Phase 2: Market Data | ✅ Complete | Price ingestion, DQ Gate, Alerts, Freeze mechanism |
+| Phase 3: Ledger | ✅ Complete | Event-sourced accounting, Cash/Holding snapshots |
+| Phase 4: Engine | ✅ Complete | Deterministic trade recommendations, drift math |
+| Phase 5: Automation | ✅ Complete | APScheduler, execution logs, retention, execution capture |
+| Phase 6: Dashboard | ✅ Complete | Portfolio command center, backup/restore procedures |
+
+---
+
+## Future Roadmap (Beyond Phase 6)
+
+### Phase 7: Advanced Order Management
 - Convert Trade Plan to broker-specific order formats
 - Tax-loss harvesting optimization
 - Lot-level cost basis selection (FIFO, LIFO, specific lot)
-
-### Phase 6: Execution Tracking
 - Manual order submission tracking
-- Execution reconciliation against broker statements
-- Post-trade compliance checking (wash sale rules)
 
-### Phase 7: Advanced Analytics
+### Phase 8: Performance Analytics
 - Performance attribution (Brinson model)
 - Risk metrics (VaR, maximum drawdown)
 - Monte Carlo retirement projections
 - Benchmark comparison (index tracking error)
+- Historical performance visualization
 
 ---
 
@@ -734,7 +902,14 @@ docker compose run --rm ui npx tsc --noEmit
 | `app/services/market_data_service.py` | 95 | On-demand price sync service |
 | `app/services/providers/yfinance_adapter.py` | 186 | Yahoo Finance provider implementation |
 | `app/services/providers/mock_provider.py` | 213 | Mock provider for testing |
+| `app/services/scheduler.py` | 183 | APScheduler with London timezone |
+| `app/services/jobs/retention.py` | 65 | Weekly retention cleanup job |
+| `app/services/execution_service.py` | 320 | Recommendation to ledger translation |
+| `app/api/v1/endpoints/recommendations.py` | 220 | Execute/ignore endpoints |
+| `app/api/v1/endpoints/dashboard.py` | 245 | Portfolio dashboard summary |
 | `scripts/sync_market_data.py` | 180 | Standalone sync script |
+| `scripts/backup_db.sh` | 195 | Database backup script |
+| `scripts/restore_db.sh` | 200 | Database restore script |
 
 ### Frontend Core Files
 
@@ -747,7 +922,15 @@ docker compose run --rm ui npx tsc --noEmit
 | `src/components/engine/trade-plan.tsx` | 326 | Trade plan display |
 | `src/hooks/use-engine.ts` | 17 | TanStack Query hook |
 | `src/hooks/use-market-data.ts` | 65 | Market data queries and sync mutation |
-| `src/types/index.ts` | 477 | TypeScript interfaces |
+| `src/hooks/use-dashboard.ts` | 20 | Dashboard summary hook |
+| `src/hooks/use-recommendations.ts` | 95 | Recommendation execution hooks |
+| `src/components/dashboard/value-summary-card.tsx` | 85 | Portfolio valuation display |
+| `src/components/dashboard/sleeve-allocations-table.tsx` | 95 | Allocation vs target table |
+| `src/components/dashboard/activity-feed.tsx` | 75 | Recent activity list |
+| `src/components/recommendations/execute-modal.tsx` | 165 | Trade execution form |
+| `src/components/recommendations/ignore-modal.tsx` | 55 | Recommendation dismissal form |
+| `src/app/portfolios/[id]/recommendations/[batch_id]/page.tsx` | 311 | Recommendation detail page |
+| `src/types/index.ts` | 560 | TypeScript interfaces |
 | `src/lib/api-client.ts` | ~30 | Axios configuration |
 
 ---
@@ -761,11 +944,14 @@ The Trading Assistant represents a production-ready, enterprise-grade portfolio 
 - **Decimal math** eliminates floating-point errors
 - **Privacy-first architecture** keeps user data local
 - **Recommendation-only design** protects user capital
+- **Automated operations** with scheduler, retention, and execution tracking
+- **Command center dashboard** for at-a-glance portfolio health
+- **Robust backup/restore** procedures for data safety
 
-The system successfully implements the Boglehead passive investment philosophy through systematic rebalancing, policy-based allocations, and emotional-decision-free trade recommendations.
+The system successfully implements the Boglehead passive investment philosophy through systematic rebalancing, policy-based allocations, emotional-decision-free trade recommendations, and comprehensive operational controls.
 
 ---
 
 *Report generated: March 11, 2026*
-*Implementation: Phases 1-4 Complete, YFinance Provider + On-Demand Sync Added*
-*Total Lines of Code: ~8,600+ (backend) + ~5,000+ (frontend)*
+*Implementation: Phases 1-6 Complete (Full V1 Implementation)*
+*Total Lines of Code: ~10,000+ (backend) + ~6,500+ (frontend)*

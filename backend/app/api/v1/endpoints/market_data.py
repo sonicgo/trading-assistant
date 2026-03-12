@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from app.api import deps
 from app.domain import models
 from app.queue.redis_queue import enqueue_job
-from app.schemas.market_data import PricePointResponse, FxRateResponse, RefreshResponse, SyncResponse
+from app.schemas.market_data import PricePointResponse, FxRateResponse, RefreshResponse, SyncRequest, SyncResponse
 from app.services.market_data_service import sync_portfolio_prices
 import asyncio
 
@@ -23,8 +23,8 @@ def get_market_prices(
     db: deps.SessionDep,
     limit: int = Query(50, le=500),
 ):
-    price_points = (
-        db.query(models.PricePoint)
+    results = (
+        db.query(models.PricePoint, models.InstrumentListing.ticker)
         .join(models.InstrumentListing, models.PricePoint.listing_id == models.InstrumentListing.listing_id)
         .join(
             models.PortfolioConstituent,
@@ -38,6 +38,22 @@ def get_market_prices(
         .limit(limit)
         .all()
     )
+    
+    price_points = []
+    for price_point, ticker in results:
+        price_dict = {
+            "price_point_id": price_point.price_point_id,
+            "listing_id": price_point.listing_id,
+            "ticker": ticker,
+            "as_of": price_point.as_of,
+            "price": price_point.price,
+            "currency": price_point.currency,
+            "is_close": price_point.is_close,
+            "source_id": price_point.source_id,
+            "created_at": price_point.created_at,
+        }
+        price_points.append(price_dict)
+    
     return price_points
 
 
@@ -105,16 +121,23 @@ def refresh_market_data(
 async def sync_market_data(
     portfolio: Annotated[models.Portfolio, Depends(deps.require_portfolio_access)],
     db: deps.SessionDep,
+    request: SyncRequest | None = None,
 ):
     """
     On-demand sync of market prices for portfolio holdings.
     
     Fetches latest prices from Yahoo Finance with rate limiting
     and saves them to the database.
+    
+    If incremental=True, skips listings that already have prices
+    within the last 24 hours.
     """
+    sync_request = request or SyncRequest()
+    
     result = await sync_portfolio_prices(
         db=db,
         portfolio_id=str(portfolio.portfolio_id),
+        incremental=sync_request.incremental,
     )
     
     await asyncio.to_thread(db.commit)

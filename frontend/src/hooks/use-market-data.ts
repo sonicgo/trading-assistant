@@ -51,9 +51,10 @@ export function useSyncMarketData(portfolioId: string | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (incremental: boolean = false) => {
       const res = await api.post<SyncResult>(
-        `/portfolios/${portfolioId}/market-data/sync`
+        `/portfolios/${portfolioId}/market-data/sync`,
+        { incremental }
       );
       return res.data;
     },

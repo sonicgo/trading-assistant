@@ -30,8 +30,7 @@ from app.services.data_quality import evaluate_dq
 from app.services.freeze import freeze_portfolio, is_portfolio_frozen
 from app.services.market_data_ingest import IngestResult, ingest_prices_for_portfolio
 from app.services.notifications import emit_notification
-from app.services.providers.mock_provider import MockProvider
-from app.core.config import settings
+from app.services.providers.yfinance_adapter import YFinanceAdapter
 
 logger = get_logger(__name__)
 
@@ -77,12 +76,7 @@ async def handle_price_refresh(job: JobPayload, ctx_logger: logging.Logger) -> s
     db: Session = SessionLocal()
 
     try:
-        # ── 1. Select provider adapter (MockProvider for Phase 2) ─────────────
-        adapter = MockProvider(
-            stale_prices=settings.mock_stale_prices,
-            jump_prices=settings.mock_jump_prices,
-            scale_mismatch=settings.mock_scale_mismatch,
-        )
+        adapter = YFinanceAdapter()
         ctx_logger.info("Using provider: %s", adapter.source_id)
 
         # ── 2. Ingest market data ──────────────────────────────────────────────

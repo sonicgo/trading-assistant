@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { PortfolioSelector } from '@/components/portfolio-selector';
 import { useAlerts } from '@/hooks/use-alerts';
 import { useListings } from '@/hooks/use-listings';
@@ -9,6 +10,12 @@ import type { AlertSeverity } from '@/types';
 
 export default function AlertsPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+  }, [user, authLoading, router]);
+
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
   const [activeOnly, setActiveOnly] = useState(true);
 
@@ -107,7 +114,7 @@ export default function AlertsPage() {
 
         {/* Alerts List */}
         <div className="space-y-4">
-          {isLoading ? (
+          {authLoading || isLoading ? (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
               <div className="animate-pulse space-y-4">
                 <div className="h-24 bg-gray-200 rounded-xl"></div>

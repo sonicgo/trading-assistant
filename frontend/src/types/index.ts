@@ -180,8 +180,9 @@ export interface AuthTokenResponse {
 export interface PricePoint {
   price_point_id: string;
   listing_id: string;
+  ticker: string;
   as_of: string;
-  price: string;           // DecimalStr from backend
+  price: string;
   currency: string | null;
   is_close: boolean;
   source_id: string;
@@ -480,4 +481,160 @@ export interface TradePlanResponse {
   is_blocked: boolean;
   block_reason: string | null;
   block_message: string | null;
+}
+
+export interface SleeveAllocation {
+  sleeve_code: string;
+  sleeve_name: string;
+  target_weight_pct: string;
+  current_weight_pct: string;
+  current_value_gbp: string;
+  drift_pct: string;
+  is_drifted: boolean;
+}
+
+export interface RecentActivityItem {
+  activity_type: string;
+  description: string;
+  occurred_at: string;
+  actor_name: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface PortfolioDashboardSummary {
+  portfolio_id: string;
+  as_of: string;
+  total_value_gbp: string;
+  cash_balance_gbp: string;
+  holdings_value_gbp: string;
+  is_drifted: boolean;
+  max_drift_pct: string;
+  drift_threshold_pct: string;
+  is_frozen: boolean;
+  freeze_reason: string | null;
+  sleeve_allocations: SleeveAllocation[];
+  recent_activity: RecentActivityItem[];
+}
+
+// ============================================================================
+// Recommendation Types (Phase 5)
+// ============================================================================
+
+export type RecommendationBatchStatus = 'PENDING' | 'EXECUTED' | 'EXECUTED_PARTIAL' | 'IGNORED';
+export type RecommendationLineStatus = 'PROPOSED' | 'EXECUTED' | 'PARTIAL' | 'IGNORED';
+
+export interface RecommendationLine {
+  recommendation_line_id: string;
+  recommendation_batch_id: string;
+  listing_id: string;
+  action: 'BUY' | 'SELL';
+  proposed_quantity: string;
+  proposed_price_gbp: string;
+  proposed_value_gbp: string;
+  proposed_fee_gbp: string;
+  status: RecommendationLineStatus;
+  executed_quantity: string | null;
+  executed_price_gbp: string | null;
+  executed_value_gbp: string | null;
+  executed_fee_gbp: string | null;
+  ledger_entry_id: string | null;
+  execution_note: string | null;
+  created_at: string;
+}
+
+export interface RecommendationBatch {
+  recommendation_batch_id: string;
+  portfolio_id: string;
+  status: RecommendationBatchStatus;
+  generated_at: string;
+  executed_at: string | null;
+  ignored_at: string | null;
+  closed_by_user_id: string | null;
+  execution_summary: Record<string, unknown> | null;
+  run_id: string | null;
+  created_at: string;
+  lines: RecommendationLine[];
+}
+
+export interface LineExecutionRequest {
+  line_id: string;
+  executed_quantity: string;
+  executed_price_gbp: string;
+  executed_fee_gbp: string;
+  note?: string;
+}
+
+export interface ExecuteBatchRequest {
+  lines: LineExecutionRequest[];
+  correlation_id?: string;
+}
+
+export interface ExecuteBatchResponse {
+  success: boolean;
+  ledger_batch_id: string;
+  entries_created: number;
+  total_cash_impact: string;
+  lines_executed: number;
+  audit_event_id: string;
+  message: string;
+}
+
+export interface IgnoreBatchRequest {
+  reason?: string;
+  correlation_id?: string;
+}
+
+export interface IgnoreBatchResponse {
+  success: boolean;
+  lines_ignored: number;
+  audit_event_id: string;
+  message: string;
+}
+
+// ============================================================================
+// Audit Event Types (Phase 5)
+// ============================================================================
+
+export interface AuditEvent {
+  audit_event_id: string;
+  portfolio_id: string | null;
+  actor_user_id: string | null;
+  event_type: string;
+  entity_type: string;
+  entity_id: string;
+  occurred_at: string;
+  summary: string;
+  details: Record<string, unknown> | null;
+  correlation_id: string | null;
+}
+
+export interface PolicyAllocationItem {
+  listing_id: string;
+  ticker: string;
+  sleeve_code: string;
+  target_weight_pct: number;
+  policy_role?: string;
+}
+
+export interface PolicyAllocationResponse {
+  allocation_id: string;
+  portfolio_id: string;
+  listing_id: string;
+  ticker: string;
+  sleeve_code: string;
+  policy_role: string;
+  target_weight_pct: number;
+  policy_hash: string;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface PolicyAllocationBulkUpdate {
+  allocations: PolicyAllocationItem[];
+}
+
+export interface PolicyAllocationBulkResponse {
+  status: string;
+  updated_count: number;
+  total_weight_pct: number;
 }

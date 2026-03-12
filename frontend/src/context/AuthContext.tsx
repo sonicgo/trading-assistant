@@ -17,23 +17,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/auth/me')
-      .then(res => setUser(res.data))
-      .catch(() => setUser(null))
-      .finally(() => setIsLoading(false));
+    const initAuth = async () => {
+      const token = localStorage.getItem('access_token');
+      
+      if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        try {
+          const res = await api.get('/auth/me');
+          setUser(res.data);
+        } catch {
+          localStorage.removeItem('access_token');
+          delete api.defaults.headers.common['Authorization'];
+          setUser(null);
+        }
+      }
+      
+      setIsLoading(false);
+    };
+    
+    initAuth();
   }, []);
 
   const login = async (credentials: { email: string; password: string }) => {
     try {
       const response = await api.post('/auth/login', credentials);
-
-      // Extract the access token from the response body
       const { access_token } = response.data;
 
-      // Attach it to all FUTURE requests from the 'api' instance
+      localStorage.setItem('access_token', access_token);
       api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
-      // Now this call will succeed because the header is present
       const res = await api.get('/auth/me');
       setUser(res.data);
     } catch (error: any) {
@@ -43,8 +55,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await api.post('/auth/logout');
-    setUser(null);
+    try {
+      await api.post('/auth/logout');
+    } finally {
+      localStorage.removeItem('access_token');
+      delete api.defaults.headers.common['Authorization'];
+      setUser(null);
+    }
   };
 
   return (

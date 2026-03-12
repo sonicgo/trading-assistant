@@ -71,7 +71,9 @@ def _to_str(value: Decimal | float | int | str) -> str:
     return value
 
 
-def _to_decimal(value: str | int | float | Decimal) -> Decimal:
+def _to_decimal(value: str | int | float | Decimal | None) -> Decimal:
+    if value is None:
+        return Decimal("0")
     return Decimal(str(value))
 
 
@@ -113,7 +115,7 @@ def _build_run_input_snapshot(snapshot_data: dict) -> RunInputSnapshot:
         current_quantity = _to_decimal(holding["quantity"])
         current_price_gbp = _to_decimal(price_info["price"])
         current_value_gbp = current_quantity * current_price_gbp
-        target_weight_pct = _to_decimal(allocation["target_weight_pct"])
+        target_weight_pct = _to_decimal(allocation.get("target_weight_pct"))
 
         # Calculate current weight percentage
         if total_value > 0:

@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Sequence
 
+import pandas as pd
 import yfinance as yf
 
 from app.services.market_data_adapter import (
@@ -163,6 +166,183 @@ class YFinanceAdapter:
             "close": rate,
             "rows_returned": len(hist),
         }
+
+    def fetch_prices_batch(
+        self,
+        tickers: list[str],
+    ) -> dict[str, tuple[Decimal, datetime, str | None]]:
+        """
+        Fetch prices for multiple tickers in a single batch request.
+
+        Applies LSE .L suffix rule to tickers, downloads all at once
+        using yf.download(), and returns a dictionary mapping original
+        ticker strings to (price, as_of, currency) tuples.
+
+        Args:
+            tickers: List of ticker symbols
+
+        Returns:
+            Dictionary mapping ticker -> (price, as_of, currency)
+        """
+        if not tickers:
+            return {}
+
+        # Build mapping: resolved (Yahoo) symbol -> original ticker
+        resolved_to_original: dict[str, str] = {}
+        resolved_tickers: list[str] = []
+        for ticker in tickers:
+            resolved = _lse_ticker(ticker)
+            resolved_tickers.append(resolved)
+            resolved_to_original[resolved] = ticker
+
+        ticker_string = " ".join(resolved_tickers)
+        logger.info(f"Batch fetching {len(tickers)} tickers: {ticker_string}")
+
+        results: dict[str, tuple[Decimal, datetime, str | None]] = {}
+
+        # Try to fetch intraday data first (1-minute interval for live prices)
+        try:
+            data = yf.download(
+                ticker_string,
+                period="1d",
+                interval="1m",
+                progress=False,
+            )
+            intraday_success = True
+        except Exception as exc:
+            logger.warning(f"Intraday fetch failed, falling back to daily: {exc}")
+            intraday_success = False
+            data = None
+
+        # Fallback to daily data if intraday fails
+        if not intraday_success or data is None or data.empty:
+            try:
+                data = yf.download(
+                    ticker_string,
+                    period="5d",
+                    progress=False,
+                )
+            except Exception as exc:
+                raise ProviderUnavailableError(
+                    f"yfinance batch download failed: {exc}",
+                    provider="yfinance",
+                    details={"tickers": tickers, "error": str(exc)},
+                ) from exc
+
+        if data is None or data.empty:
+            logger.warning("yfinance returned empty data for batch request")
+            return results
+
+        is_multiindex = isinstance(data.columns, pd.MultiIndex)
+        logger.debug(f"DataFrame columns type: {type(data.columns)}, is_multiindex: {is_multiindex}, intraday: {intraday_success}")
+
+        if is_multiindex:
+            if "Close" not in data.columns.get_level_values(0) and "Adj Close" not in data.columns.get_level_values(0):
+                logger.warning("No 'Close' or 'Adj Close' price type in MultiIndex data")
+                return results
+            available_tickers = data["Close"].columns.tolist() if "Close" in data.columns.get_level_values(0) else data["Adj Close"].columns.tolist()
+            close_df = data["Close"] if "Close" in data.columns.get_level_values(0) else data["Adj Close"]
+            adj_close_df = data["Adj Close"] if "Adj Close" in data.columns.get_level_values(0) else None
+        else:
+            if "Close" not in data.columns and "Adj Close" not in data.columns:
+                logger.warning("No 'Close' or 'Adj Close' column in flat data")
+                return results
+            available_tickers = [resolved_tickers[0]] if len(tickers) == 1 else []
+            price_col = "Close" if "Close" in data.columns else "Adj Close"
+            close_df = data[[price_col]].rename(columns={price_col: resolved_tickers[0]}) if len(tickers) == 1 else pd.DataFrame()
+            adj_close_df = data[["Adj Close"]].rename(columns={"Adj Close": resolved_tickers[0]}) if "Adj Close" in data.columns and len(tickers) == 1 else None
+
+        # Track which tickers were successfully parsed
+        parsed_tickers = set()
+
+        for resolved, original in resolved_to_original.items():
+            try:
+                if resolved not in available_tickers:
+                    logger.warning(f"Ticker {original} (resolved: {resolved}) not found in response columns: {available_tickers}")
+                    continue
+
+                close_series = close_df[resolved].dropna()
+
+                if close_series.empty and adj_close_df is not None:
+                    close_series = adj_close_df[resolved].dropna()
+                    logger.debug(f"Using Adj Close for {original} (resolved: {resolved}) since Close was empty")
+
+                if close_series.empty:
+                    logger.warning(f"No valid close prices for {original} (resolved: {resolved})")
+                    continue
+
+                raw_price = close_series.iloc[-1]
+                ts_index = close_series.index[-1]
+
+                if pd.isna(raw_price) or (isinstance(raw_price, float) and math.isnan(raw_price)):
+                    logger.warning(f"Price data for {original} is NaN, trying earlier data points")
+                    found_valid = False
+                    for idx in range(-2, -min(len(close_series) + 1, 6), -1):
+                        try:
+                            alt_price = close_series.iloc[idx]
+                            alt_ts = close_series.index[idx]
+                            if not pd.isna(alt_price) and not (isinstance(alt_price, float) and math.isnan(alt_price)):
+                                raw_price = alt_price
+                                ts_index = alt_ts
+                                logger.debug(f"Using price from {idx} periods ago for {original}")
+                                found_valid = True
+                                break
+                        except IndexError:
+                            break
+                    if not found_valid:
+                        logger.warning(f"All price data for {original} is NaN, will try fallback")
+                        continue
+
+                price = Decimal(str(raw_price))
+
+                # Use the timestamp from the data (intraday gives precise timestamps)
+                if hasattr(ts_index, "tzinfo") and ts_index.tzinfo is not None:
+                    as_of = ts_index.to_pydatetime().astimezone(timezone.utc)
+                else:
+                    as_of = ts_index.to_pydatetime().replace(tzinfo=timezone.utc)
+
+                currency = self._get_currency(resolved)
+                results[original] = (price, as_of, currency)
+                parsed_tickers.add(original)
+                logger.debug(f"Successfully parsed price for {original}: {price} {currency} at {as_of}")
+
+            except Exception as exc:
+                logger.warning(f"Failed to parse data for {original} (resolved: {resolved}): {exc}")
+                continue
+
+        # Fallback for missing tickers (e.g., IGL5) using fast_info
+        missing_tickers = set(resolved_to_original.values()) - parsed_tickers
+        for original in missing_tickers:
+            try:
+                resolved = _lse_ticker(original)
+                logger.info(f"Attempting fast_info fallback for {original} (resolved: {resolved})")
+
+                ticker_obj = yf.Ticker(resolved)
+                fast_info = ticker_obj.fast_info
+
+                if fast_info and hasattr(fast_info, 'last_price') and fast_info.last_price:
+                    price = Decimal(str(fast_info.last_price))
+                    as_of = datetime.now(timezone.utc)
+                    currency = getattr(fast_info, 'currency', None)
+
+                    results[original] = (price, as_of, currency)
+                    logger.info(f"Successfully fetched {original} via fast_info: {price} {currency}")
+                else:
+                    logger.warning(f"No fast_info available for {original}")
+            except Exception as exc:
+                logger.warning(f"Fast_info fallback failed for {original}: {exc}")
+                continue
+
+        return results
+
+    def _get_currency(self, ticker: str) -> str | None:
+        """Get currency for a ticker (best effort)."""
+        try:
+            t = yf.Ticker(ticker)
+            fast = t.fast_info
+            return getattr(fast, "currency", None)
+        except Exception:
+            return None
 
     @staticmethod
     def _download(ticker: str):

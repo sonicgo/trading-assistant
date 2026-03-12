@@ -66,11 +66,6 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        
-        // Only redirect if we aren't already there!
-        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-          window.location.href = '/login?session=expired';
-        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

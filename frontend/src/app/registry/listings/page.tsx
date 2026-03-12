@@ -1,13 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { useListings, useCreateListing, useUpdateListing } from '@/hooks/use-listings';
 import { useInstruments } from '@/hooks/use-instruments';
 import type { Listing, ListingCreate, ListingUpdate, PriceScale } from '@/types';
 
 export default function ListingsPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+  }, [user, authLoading, router]);
+
   const [instrumentFilter, setInstrumentFilter] = useState('');
   const [exchangeFilter, setExchangeFilter] = useState('');
   const [tickerFilter, setTickerFilter] = useState('');
@@ -25,6 +32,7 @@ export default function ListingsPage() {
   const { data: instrumentsData } = useInstruments({ limit: 200 });
   const createListing = useCreateListing();
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
+  const updateListingMutation = useUpdateListing(editingListing?.listing_id || '');
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [formData, setFormData] = useState<ListingCreate>({
@@ -66,18 +74,17 @@ export default function ListingsPage() {
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingListing) return;
-    
-    const updateMutation = useUpdateListing(editingListing.listing_id);
+
     const updateData: ListingUpdate = {};
-    
+
     if (formData.ticker !== editingListing.ticker) updateData.ticker = formData.ticker.toUpperCase();
     if (formData.exchange !== editingListing.exchange) updateData.exchange = formData.exchange.toUpperCase();
     if (formData.trading_currency !== editingListing.trading_currency) updateData.trading_currency = formData.trading_currency;
     if (formData.price_scale !== editingListing.price_scale) updateData.price_scale = formData.price_scale;
     if (formData.is_primary !== editingListing.is_primary) updateData.is_primary = formData.is_primary;
-    
+
     try {
-      await updateMutation.mutateAsync(updateData);
+      await updateListingMutation.mutateAsync(updateData);
       setEditingListing(null);
       refetch();
     } catch (err: any) {
@@ -197,7 +204,7 @@ export default function ListingsPage() {
 
         {/* Table */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          {isLoading ? (
+          {authLoading || isLoading ? (
             <div className="p-12 text-center text-gray-500">Loading listings...</div>
           ) : error ? (
             <div className="p-12 text-center">

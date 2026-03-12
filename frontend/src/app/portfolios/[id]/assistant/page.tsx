@@ -1,12 +1,19 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { TradePlan } from '@/components/engine/trade-plan';
 
 export default function AssistantPage() {
   const { id } = useParams();
   const router = useRouter();
   const portfolioId = id as string;
+  const { user, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+  }, [user, authLoading, router]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">

@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { usePortfolios, useCreatePortfolio } from '@/hooks/use-portfolios-query';
 import type { PortfolioCreate, TaxProfile } from '@/types';
 
 export default function PortfoliosPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+  }, [user, authLoading, router]);
+
   const { data: portfolios, isLoading, error, refetch } = usePortfolios();
   const createPortfolio = useCreatePortfolio();
   
@@ -48,7 +55,7 @@ export default function PortfoliosPage() {
     }
   };
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-6xl mx-auto">

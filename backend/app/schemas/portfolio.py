@@ -103,3 +103,49 @@ class PortfolioConstituentResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ---------------------------------------------------------------------------
+# Policy Allocation (Manifesto Targets) schemas
+# ---------------------------------------------------------------------------
+
+class PolicyAllocationItem(ApiModel):
+    listing_id: uuid.UUID
+    ticker: str
+    sleeve_code: str
+    target_weight_pct: float = Field(
+        ge=0,
+        le=100,
+        description="Target weight percentage (0-100)"
+    )
+    policy_role: str = Field(
+        default="INVESTED_ASSET",
+        description="INVESTED_ASSET or CASH_PARK"
+    )
+
+
+class PolicyAllocationBulkUpdate(ApiModel):
+    allocations: list[PolicyAllocationItem] = Field(
+        description="Complete set of policy allocations for the portfolio"
+    )
+
+
+class PolicyAllocationResponse(BaseModel):
+    allocation_id: uuid.UUID = Field(alias="portfolio_policy_allocation_id")
+    portfolio_id: uuid.UUID
+    listing_id: uuid.UUID
+    ticker: str
+    sleeve_code: str
+    policy_role: str
+    target_weight_pct: float
+    policy_hash: str
+    created_at: datetime
+    updated_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class PolicyAllocationBulkResponse(BaseModel):
+    status: str = "success"
+    updated_count: int
+    total_weight_pct: float

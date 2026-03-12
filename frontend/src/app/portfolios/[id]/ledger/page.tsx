@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { useCashSnapshot, useHoldingSnapshots } from '@/hooks/use-snapshots';
 import { useFreeze, useUnfreezePortfolio } from '@/hooks/use-freeze';
 import { LedgerHistoryTable } from '@/components/ledger/ledger-history-table';
@@ -11,6 +13,11 @@ export default function LedgerPage() {
   const { id } = useParams();
   const router = useRouter();
   const portfolioId = id as string;
+  const { user, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+  }, [user, authLoading, router]);
 
   const { data: cashSnapshot, isLoading: cashLoading } = useCashSnapshot(portfolioId);
   const { data: holdingsData, isLoading: holdingsLoading } = useHoldingSnapshots(portfolioId);
@@ -69,7 +76,7 @@ export default function LedgerPage() {
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
               Cash Balance
             </h3>
-            {cashLoading ? (
+            {authLoading || cashLoading ? (
               <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
             ) : (
               <div className="text-3xl font-bold text-gray-900">
@@ -85,7 +92,7 @@ export default function LedgerPage() {
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
               Holdings
             </h3>
-            {holdingsLoading ? (
+            {authLoading || holdingsLoading ? (
               <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
             ) : (
               <div className="text-3xl font-bold text-gray-900">

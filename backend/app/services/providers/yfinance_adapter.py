@@ -10,7 +10,7 @@ import asyncio
 import logging
 import math
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Sequence
 
 import pandas as pd
@@ -65,7 +65,7 @@ class YFinanceAdapter:
             quote_kwargs = dict(
                 listing_id=ticker_raw,
                 as_of=as_of,
-                price=f"{price:.4f}",
+                price=str(price),
                 currency=currency,
                 raw={**raw_payload, "resolved_ticker": used_ticker},
             )
@@ -102,7 +102,7 @@ class YFinanceAdapter:
                 base_ccy=base_ccy.upper(),
                 quote_ccy=quote_ccy.upper(),
                 as_of=as_of,
-                rate=f"{rate:.6f}",
+                rate=str(rate),
                 raw=raw_payload,
             ))
 
@@ -126,7 +126,7 @@ class YFinanceAdapter:
                 details={"ticker": ticker_raw, "resolved": resolved},
             )
 
-        close_price = float(hist["Close"].iloc[-1])
+        close_price = Decimal(str(hist["Close"].iloc[-1])).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
         ts_index = hist.index[-1]
 
         if hasattr(ts_index, "tzinfo") and ts_index.tzinfo is not None:
@@ -138,7 +138,7 @@ class YFinanceAdapter:
 
         return close_price, as_of, currency, resolved, {
             "source": "yfinance",
-            "close": close_price,
+            "close": str(close_price),
             "rows_returned": len(hist),
         }
 
@@ -152,7 +152,7 @@ class YFinanceAdapter:
                 details={"fx_ticker": fx_ticker},
             )
 
-        rate = float(hist["Close"].iloc[-1])
+        rate = Decimal(str(hist["Close"].iloc[-1])).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
         ts_index = hist.index[-1]
 
         if hasattr(ts_index, "tzinfo") and ts_index.tzinfo is not None:
@@ -163,7 +163,7 @@ class YFinanceAdapter:
         return rate, as_of, {
             "source": "yfinance",
             "fx_ticker": fx_ticker,
-            "close": rate,
+            "close": str(rate),
             "rows_returned": len(hist),
         }
 

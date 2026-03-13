@@ -31,6 +31,7 @@ from app.services.freeze import freeze_portfolio, is_portfolio_frozen
 from app.services.market_data_ingest import IngestResult, ingest_prices_for_portfolio
 from app.services.notifications import emit_notification
 from app.services.providers.yfinance_adapter import YFinanceAdapter
+from app.core.config import settings
 
 logger = get_logger(__name__)
 

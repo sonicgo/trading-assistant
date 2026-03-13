@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import math
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_FLOOR, ROUND_HALF_UP
 
 from app.domain.engine import AssetPosition, ProposedTrade, RunInputSnapshot, TradePlan
 
@@ -88,9 +87,9 @@ def generate_trade_plan(
             )
             continue
 
-        # Calculate integer shares to sell using floor
-        target_shares = math.floor(target_value / position.current_price_gbp)
-        current_shares = math.floor(position.current_value_gbp / position.current_price_gbp)
+        # Calculate integer shares to sell using Decimal floor division
+        target_shares = int(target_value // position.current_price_gbp)
+        current_shares = int(position.current_value_gbp // position.current_price_gbp)
         quantity_to_sell = current_shares - target_shares
         if quantity_to_sell <= 0:
             continue
@@ -130,10 +129,10 @@ def generate_trade_plan(
             )
             continue
 
-        # Calculate maximum affordable shares with available cash using floor
-        max_affordable_shares = math.floor(projected_cash_pool / position.current_price_gbp)
-        target_shares = math.floor(target_value / position.current_price_gbp)
-        current_shares = math.floor(position.current_value_gbp / position.current_price_gbp)
+        # Calculate maximum affordable shares with available cash using Decimal floor division
+        max_affordable_shares = int(projected_cash_pool // position.current_price_gbp)
+        target_shares = int(target_value // position.current_price_gbp)
+        current_shares = int(position.current_value_gbp // position.current_price_gbp)
         desired_shares = target_shares - current_shares
         quantity_to_buy = min(max_affordable_shares, desired_shares)
         if quantity_to_buy <= 0:

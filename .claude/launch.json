@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "configurations": [
+    {
+      "name": "Trading Dashboard",
+      "type": "web-preview",
+      "request": "launch",
+      "url": "http://172.16.17.73:3000", 
+      "server": {
+        "command": "docker compose up ui",
+        "cwd": "./",
+        "readyPattern": "ready on"
+      }
+    },
+    {
+      "name": "Backend API",
+      "type": "server-log",
+      "request": "launch",
+      "server": {
+        "command": "docker compose logs -f api",
+        "cwd": "./",
+        "readyPattern": "Application startup complete"
+      }
+    }
+  ]
+}

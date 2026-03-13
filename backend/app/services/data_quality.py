@@ -21,7 +21,7 @@ from __future__ import annotations
 import zoneinfo
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta, time
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -257,7 +257,7 @@ def check_price_jump(
         listing_id=str(listing.listing_id),
         title=f"Price Jump Detected: {listing.ticker}",
         message=(
-            f"Price moved {float(pct_change):.2f}% vs previous close "
+            f"Price moved {pct_change:.2f}% vs previous close "
             f"(threshold: {settings.dq_jump_threshold_pct}%)."
         ),
         details={
@@ -265,7 +265,7 @@ def check_price_jump(
             "ticker": listing.ticker,
             "latest_close": str(current),
             "previous_close": str(previous),
-            "pct_change": float(pct_change),
+            "pct_change": float(pct_change.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
             "threshold_pct": settings.dq_jump_threshold_pct,
             "latest_close_as_of": _as_utc(latest_close.as_of).isoformat(),
             "prev_close_as_of": _as_utc(prev_close.as_of).isoformat(),
@@ -315,7 +315,7 @@ def check_gbx_scale(
             message=(
                 f"Provider price {current_price} appears to be in GBP but listing "
                 f"'{listing.ticker}' expects GBX (pence).  "
-                f"Ratio vs previous close ({previous_close}): {float(ratio):.4f}."
+                f"Ratio vs previous close ({previous_close}): {ratio:.4f}."
             ),
             details={
                 "listing_id": str(listing.listing_id),
@@ -324,7 +324,7 @@ def check_gbx_scale(
                 "listing_trading_currency": listing.trading_currency,
                 "provider_price": str(current_price),
                 "previous_close": str(previous_close),
-                "ratio": float(ratio),
+                "ratio": float(ratio.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)),
                 "expected_ratio_range": "0.95–1.05",
                 "hazard": "Provider returned GBP; listing expects GBX (pence)",
             },
@@ -340,7 +340,7 @@ def check_gbx_scale(
             message=(
                 f"Provider price {current_price} appears to be in GBX (pence) but "
                 f"listing '{listing.ticker}' expects GBP.  "
-                f"Ratio vs previous close ({previous_close}): {float(ratio):.4f}."
+                f"Ratio vs previous close ({previous_close}): {ratio:.4f}."
             ),
             details={
                 "listing_id": str(listing.listing_id),
@@ -349,7 +349,7 @@ def check_gbx_scale(
                 "listing_trading_currency": listing.trading_currency,
                 "provider_price": str(current_price),
                 "previous_close": str(previous_close),
-                "ratio": float(ratio),
+                "ratio": float(ratio.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)),
                 "expected_ratio_range": "0.95–1.05",
                 "hazard": "Provider returned GBX (pence); listing expects GBP",
             },
